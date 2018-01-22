@@ -1,0 +1,5 @@
+port = 6687
+
+allow_origin = ["*"]
+
+tg_key = "123456789:AAHEUURbcdefghijklmn123opqrstuvwxyz"
