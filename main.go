@@ -34,8 +34,9 @@ func main() {
 	defer db.Close()
 
 	db.AutoMigrate(&model.Subscriber{}, &model.Heartbeat{}, &model.Node{}, &model.Task{})
+	model.Db = db
 
-	go broadcaster.ServeTelegram(GlobCfg.TG_KEY)
+	go broadcaster.ServeTelegram(model.Db, GlobCfg.TG_KEY, broadcaster.Ch)
 
 	mux.GET("/api", httphandler.Pong)
 
@@ -53,13 +54,13 @@ func main() {
 	mux.PUT("/api/task/:id", httphandler.Pong)
 	mux.DELETE("/api/task/:id", httphandler.Pong)
 
-	mux.POST("/api/broadcast", httphandler.Pong)
+	mux.POST("/api/broadcast", httphandler.Broadcast)
 
 	//mux.ServeFiles("/static/*filepath", http.Dir("static"))
 
 	c := cors.New(cors.Options{
-		AllowedOrigins: GlobCfg.ALLOW_ORIGIN,
-		AllowedMethods: []string{"GET", "POST", "OPTIONS", "PUT", "DELETE"},
+		AllowedOrigins:   GlobCfg.ALLOW_ORIGIN,
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS", "PUT", "DELETE"},
 		AllowCredentials: true,
 		//AllowedHeaders: []string{""},
 	})
