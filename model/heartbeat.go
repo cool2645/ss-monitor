@@ -1,6 +1,11 @@
 package model
 
-import "time"
+import (
+	"time"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"github.com/pkg/errors"
+)
 
 type Heartbeat struct {
 	ID        uint      `gorm:"AUTO_INCREMENT"`
@@ -16,4 +21,23 @@ func ServicesStatus() {
 
 func SyncServiceStatus() {
 
+}
+
+func SaveHeartbeat(db *gorm.DB, class string, ip_ver uint, name string) (newHeartbeat Heartbeat, err error) {
+	var heartbeat Heartbeat
+	heartbeat.Class = class
+	heartbeat.IPVer = ip_ver
+	heartbeat.Name = name
+	newHeartbeat, err = CreateHeartbeat(db, heartbeat)
+	return
+}
+
+func CreateHeartbeat(db *gorm.DB, heartbeat Heartbeat) (newHeartbeat Heartbeat, err error) {
+	err = db.Create(&heartbeat).Error
+	if err != nil {
+		err = errors.Wrap(err, "CreateHeartbeat")
+		return
+	}
+	newHeartbeat = heartbeat
+	return
 }
