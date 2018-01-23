@@ -39,6 +39,22 @@ func main() {
 
 	mux.GET("/api", httphandler.Pong)
 
+	mux.GET("/api/status", httphandler.Pong)
+	mux.GET("/api/status/worker", httphandler.Pong)
+	mux.GET("/api/status/node", httphandler.Pong)
+	mux.POST("/api/status/worker/:id", httphandler.Pong)
+
+	mux.GET("/api/task", httphandler.Pong)
+	mux.GET("/api/task/:id", httphandler.Pong)
+	mux.GET("/api/task/:id/log", httphandler.Pong)
+	// Needs middleware here
+	mux.POST("/api/task", httphandler.Pong)
+	mux.PUT("/api/task/:id/assign", httphandler.Pong)
+	mux.PUT("/api/task/:id", httphandler.Pong)
+	mux.DELETE("/api/task/:id", httphandler.Pong)
+
+	mux.POST("/api/broadcast", httphandler.Pong)
+
 	//mux.ServeFiles("/static/*filepath", http.Dir("static"))
 
 	c := cors.New(cors.Options{

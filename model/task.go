@@ -39,10 +39,10 @@ func CreateTask(db *gorm.DB, task Task) (newTask Task, err error) {
 	return
 }
 
-func GetTasks(db *gorm.DB, class string, state string, ipv uint, order string, page int) (tasks []Task, err error) {
+func GetTasks(db *gorm.DB, class string, state string, ipVer uint, order string, page int) (tasks []Task, err error) {
 	switch class {
 	case "tester":
-		err = db.Where("class = ?", class).Where("ip_ver = ?", ipv).Where("state = ?", state).
+		err = db.Where("class = ?", class).Where("ip_ver = ?", ipVer).Where("state = ?", state).
 			Preload("Node").Order("id " + order).Offset(page * 10).Limit(10).Find(&tasks).Error
 	default:
 		err = db.Where("class = ?", class).Where("state = ?", state).

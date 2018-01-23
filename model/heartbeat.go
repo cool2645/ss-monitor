@@ -15,18 +15,18 @@ type Heartbeat struct {
 	CreatedAt time.Time `gorm:"index"`
 }
 
-func ServicesStatus() {
+func WorkersStatus() {
 
 }
 
-func SyncServiceStatus() {
+func SyncWorkerStatus() {
 
 }
 
-func SaveHeartbeat(db *gorm.DB, class string, ip_ver uint, name string) (newHeartbeat Heartbeat, err error) {
+func SaveHeartbeat(db *gorm.DB, class string, ipVer uint, name string) (newHeartbeat Heartbeat, err error) {
 	var heartbeat Heartbeat
 	heartbeat.Class = class
-	heartbeat.IPVer = ip_ver
+	heartbeat.IPVer = ipVer
 	heartbeat.Name = name
 	newHeartbeat, err = CreateHeartbeat(db, heartbeat)
 	return
