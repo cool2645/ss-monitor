@@ -12,3 +12,19 @@ type Node struct {
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
+
+func NodesStatus() {
+
+}
+
+func NewNode() {
+
+}
+
+func UpdateNode() {
+
+}
+
+func DeleteNode() {
+
+}

@@ -9,3 +9,11 @@ type Heartbeat struct {
 	Name      string
 	CreatedAt time.Time `gorm:"index"`
 }
+
+func ServicesStatus() {
+
+}
+
+func SyncServiceStatus() {
+
+}

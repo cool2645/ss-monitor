@@ -17,3 +17,23 @@ type Task struct {
 	ServerName string
 	SsJson     string
 }
+
+func NewTask() {
+
+}
+
+func GetTasks() {
+
+}
+
+func GetTask() {
+
+}
+
+func AssignTask() {
+
+}
+
+func SyncTaskStatus() {
+
+}

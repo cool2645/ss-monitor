@@ -13,6 +13,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/yanzay/log"
 	"github.com/cool2645/ss-monitor/model"
+	"github.com/cool2645/ss-monitor/httphandler"
 )
 
 var mux = httprouter.New()
@@ -36,7 +37,7 @@ func main() {
 
 	go broadcaster.ServeTelegram(GlobCfg.TG_KEY)
 
-	mux.GET("/api", Pong)
+	mux.GET("/api", httphandler.Pong)
 
 	//mux.ServeFiles("/static/*filepath", http.Dir("static"))
 
