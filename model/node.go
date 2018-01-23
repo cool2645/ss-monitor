@@ -9,6 +9,7 @@ import (
 
 type Node struct {
 	ID         uint `gorm:"AUTO_INCREMENT"`
+	Name       string
 	IPv4       string
 	IPv6       string
 	Ss4Json    string
@@ -20,6 +21,15 @@ type Node struct {
 
 func NodesStatus() {
 
+}
+
+func GetNodes(db *gorm.DB) (nodes []Node, err error) {
+	err = db.Order("name asc").Find(&nodes).Error
+	if err != nil {
+		err = errors.Wrap(err, "GetNodes")
+		return
+	}
+	return
 }
 
 func CreateNode(db *gorm.DB, node Node) (newNode Node, err error) {

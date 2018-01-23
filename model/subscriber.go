@@ -13,6 +13,26 @@ type Subscriber struct {
 	CreatedAt time.Time
 }
 
+func ListSubscribers(db *gorm.DB) (chats []int64, err error) {
+	subscribers, err := GetSubscribers(db)
+	if err != nil {
+		return
+	}
+	for _, v := range subscribers {
+		chats = append(chats, v.ChatID)
+	}
+	return 
+}
+
+func GetSubscribers(db *gorm.DB) (subscribers []Subscriber, err error) {
+	err = db.Order("name asc").Find(&subscribers).Error
+	if err != nil {
+		err = errors.Wrap(err, "GetSubscribers")
+		return
+	}
+	return
+}
+
 func SaveSubscriber(db *gorm.DB, chatID int64) (newSubscriber Subscriber, err error) {
 	var subscriber Subscriber
 	subscriber.ChatID = chatID
