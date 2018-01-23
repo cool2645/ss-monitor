@@ -9,6 +9,10 @@ import (
 	"github.com/astaxie/beego/session"
 	"github.com/rs/cors"
 	"github.com/cool2645/ss-monitor/broadcaster"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"github.com/yanzay/log"
+	"github.com/cool2645/ss-monitor/model"
 )
 
 var mux = httprouter.New()
@@ -20,6 +24,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	db, err := gorm.Open("mysql", parseDSN(GlobCfg))
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Infof("Database init done")
+	defer db.Close()
+
+	db.AutoMigrate(&model.Subscriber{}, &model.Heartbeat{}, &model.Node{}, &model.Task{})
 
 	go broadcaster.ServeTelegram(GlobCfg.TG_KEY)
 

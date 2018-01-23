@@ -3,3 +3,8 @@ port = 6687
 allow_origin = ["*"]
 
 tg_key = "123456789:AAHEUURbcdefghijklmn123opqrstuvwxyz"
+
+db_name = "ssmonitor"
+db_user = "root"
+db_pass = ""
+db_charset = "utf8"
