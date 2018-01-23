@@ -36,7 +36,7 @@ func main() {
 	db.AutoMigrate(&model.Subscriber{}, &model.Heartbeat{}, &model.Node{}, &model.Task{})
 	model.Db = db
 
-	go broadcaster.ServeTelegram(model.Db, GlobCfg.TG_KEY, broadcaster.Ch)
+	go broadcaster.ServeTelegram(model.Db, GlobCfg.TG_KEY)
 
 	mux.GET("/api", httphandler.Pong)
 

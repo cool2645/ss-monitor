@@ -25,7 +25,7 @@ func ListSubscribers(db *gorm.DB) (chats []int64, err error) {
 }
 
 func GetSubscribers(db *gorm.DB) (subscribers []Subscriber, err error) {
-	err = db.Order("name asc").Find(&subscribers).Error
+	err = db.Find(&subscribers).Error
 	if err != nil {
 		err = errors.Wrap(err, "GetSubscribers")
 		return

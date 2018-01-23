@@ -12,12 +12,13 @@ import (
 )
 
 var subscribedChats []int64
-var mux *sync.RWMutex
-var Ch chan string
+var mux sync.RWMutex
+var Ch = make(chan string)
 
-func ServeTelegram(db *gorm.DB, apiKey string, ch chan string) {
+func ServeTelegram(db *gorm.DB, apiKey string) {
 	log.Infof("Reading subscribed chats from database %s", time.Now())
-	subscribedChats, err := model.ListSubscribers(db)
+	var err error
+	subscribedChats, err = model.ListSubscribers(db)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -27,7 +28,7 @@ func ServeTelegram(db *gorm.DB, apiKey string, ch chan string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	go pushMessage(bot, ch)
+	go pushMessage(bot, Ch)
 	u := tg.NewUpdate(0)
 	u.Timeout = 60
 	updates, err := bot.GetUpdatesChan(u)
@@ -48,12 +49,13 @@ func ServeTelegram(db *gorm.DB, apiKey string, ch chan string) {
 }
 
 func pushMessage(bot *tg.BotAPI, ch chan string) {
-	var msg string
+	var m string
 	for {
-		msg = <-ch
+		m = <- ch
 		mux.RLock()
 		for _, v := range subscribedChats {
-			msg := tg.NewMessage(v, msg)
+			msg := tg.NewMessage(v, m)
+			msg.ParseMode = "Markdown"
 			bot.Send(msg)
 		}
 		mux.RUnlock()
@@ -95,7 +97,7 @@ func replyMessage(text string, bot *tg.BotAPI, req *tg.Message) {
 }
 
 func Broadcast(msg string, worker string, class string) {
-	msgf := fmt.Sprintf("%s\n%s(%s)", msg, worker, class)
+	msgf := fmt.Sprintf("%s\n_By %s(%s)_", msg, worker, class)
 	Ch <- msgf
 	return
 }
