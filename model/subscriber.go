@@ -21,7 +21,7 @@ func ListSubscribers(db *gorm.DB) (chats []int64, err error) {
 	for _, v := range subscribers {
 		chats = append(chats, v.ChatID)
 	}
-	return 
+	return
 }
 
 func GetSubscribers(db *gorm.DB) (subscribers []Subscriber, err error) {
@@ -34,9 +34,13 @@ func GetSubscribers(db *gorm.DB) (subscribers []Subscriber, err error) {
 }
 
 func SaveSubscriber(db *gorm.DB, chatID int64) (newSubscriber Subscriber, err error) {
-	var subscriber Subscriber
-	subscriber.ChatID = chatID
-	newSubscriber, err = CreateSubscriber(db, subscriber)
+	var count int
+	err = db.Model(&Subscriber{}).Where("chat_id = ?", chatID).Count(&count).Error
+	if count == 0 {
+		var subscriber Subscriber
+		subscriber.ChatID = chatID
+		newSubscriber, err = CreateSubscriber(db, subscriber)
+	}
 	return
 }
 
