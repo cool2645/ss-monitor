@@ -43,7 +43,7 @@ func main() {
 	mux.GET("/api/status", httphandler.Pong)
 	mux.GET("/api/status/worker", httphandler.Pong)
 	mux.GET("/api/status/node", httphandler.Pong)
-	mux.POST("/api/status/worker/:id", httphandler.Pong)
+	mux.POST("/api/status/worker/:name", httphandler.HandleHeartbeat)
 
 	mux.GET("/api/task", httphandler.GetTasks)
 	mux.GET("/api/task/:id", httphandler.GetTask)
