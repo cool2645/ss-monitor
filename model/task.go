@@ -17,7 +17,7 @@ type Task struct {
 	IPVer      uint   `gorm:"index"`
 	State      string
 	Worker     string
-	Log        string
+	Log        string `sql:"type:text;"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 	ServerName string
