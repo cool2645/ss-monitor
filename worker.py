@@ -9,6 +9,7 @@ import logging
 import traceback
 import sys
 from urllib.parse import urlencode
+
 ssl._create_default_https_context = ssl._create_unverified_context
 
 
@@ -45,13 +46,9 @@ class Worker:
         logging.basicConfig(level=logging.DEBUG,
                             stream=sys.stdout,
                             format='[%(asctime)s] %(threadName)s %(filename)s [%(levelname)s] %(message)s',
-                            datefmt='%Y %b %d %H:%M:%S',)
+                            datefmt='%Y %b %d %H:%M:%S', )
 
     def _GET(self, path, data_dict=None, isDeserialize=True, headers=None, method='GET', depth=0):
-        # data = ""
-        # if data_dict is not None:
-        #     for k in data_dict:
-        #         data = data + k + '=' + data_dict[k] + '&'
         data = urlencode(data_dict)
         req = Request(
             url=self.apiUrl + ('/' + path if path else '') + '?' + data,
@@ -78,10 +75,6 @@ class Worker:
                 return
 
     def _POST(self, path, data_dict=None, isDeserialize=True, headers=None, method='POST', depth=0):
-        # data = ""
-        # if data_dict is not None:
-        #     for k in data_dict:
-        #         data = data + k + '=' + data_dict[k] + '&'
         data = urlencode(data_dict)
         req = Request(
             url=self.apiUrl + ('/' + path if path else ''),
@@ -113,4 +106,3 @@ class Worker:
 
     def _PUT(self, path, data_dict=None, isDeserialize=True, headers=None):
         return self._POST(path, data_dict, isDeserialize, headers=headers, method='PUT')
-

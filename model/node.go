@@ -8,15 +8,18 @@ import (
 )
 
 type Node struct {
-	ID         uint `gorm:"AUTO_INCREMENT"`
-	Name       string
-	IPv4       string
-	IPv6       string
-	Ss4Json    string
-	Ss6Json    string
-	IsCleaning bool
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID            uint `gorm:"AUTO_INCREMENT"`
+	Name          string
+	IPv4          string
+	IPv6          string
+	Ss4Json       string
+	Ss6Json       string
+	DomainPrefix4 string
+	DomainPrefix6 string
+	DomainRoot    string
+	IsCleaning    bool
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 func NodesStatus() {

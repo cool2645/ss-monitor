@@ -12,6 +12,7 @@ type Heartbeat struct {
 	Class     string    `gorm:"not null;index"`
 	IPVer     uint      `gorm:"index"`
 	Name      string
+	Time      int64
 	CreatedAt time.Time `gorm:"index"`
 }
 
@@ -24,20 +25,39 @@ func SyncWorkerStatus() {
 }
 
 func SaveHeartbeat(db *gorm.DB, class string, ipVer uint, name string) (newHeartbeat Heartbeat, err error) {
+	var count int
 	var heartbeat Heartbeat
-	heartbeat.Class = class
-	heartbeat.IPVer = ipVer
-	heartbeat.Name = name
-	newHeartbeat, err = CreateHeartbeat(db, heartbeat)
-	return
-}
-
-func CreateHeartbeat(db *gorm.DB, heartbeat Heartbeat) (newHeartbeat Heartbeat, err error) {
-	err = db.Create(&heartbeat).Error
+	err = db.Model(&Heartbeat{}).Where("name = ?", name).Count(&count).Error
 	if err != nil {
-		err = errors.Wrap(err, "CreateHeartbeat")
+		err = errors.Wrap(err, "SaveHeartbeat: CountHeartbeat")
 		return
 	}
-	newHeartbeat = heartbeat
+	if count == 0 {
+		heartbeat.Class = class
+		heartbeat.IPVer = ipVer
+		heartbeat.Time = time.Now().Unix()
+		heartbeat.Name = name
+		err = db.Create(&heartbeat).Error
+		if err != nil {
+			err = errors.Wrap(err, "SaveHeartbeat: CreateHeartbeat")
+			return
+		}
+		newHeartbeat = heartbeat
+		return
+	} else {
+		err = db.Where("name = ?", name).First(&heartbeat).Error
+		if err != nil {
+			err = errors.Wrap(err, "SaveHeartbeat: QueryHeartbeat")
+			return
+		}
+		heartbeat.Class = class
+		heartbeat.IPVer = ipVer
+		heartbeat.Time = time.Now().Unix()
+		err = db.Model(&heartbeat).Updates(heartbeat).Error
+		if err != nil {
+			err = errors.Wrap(err, "SaveHeartbeat: UpdateHeartbeat")
+			return
+		}
+	}
 	return
 }

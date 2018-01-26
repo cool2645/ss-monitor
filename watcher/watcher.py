@@ -159,7 +159,3 @@ class Watcher(Worker):
             traceback.print_exc(file=sys.stderr)
             return False
         return True
-
-# w = Watcher()
-# print(w.get_tasks())
-# print(w.ping(host='us0.ss.2645net.work'))

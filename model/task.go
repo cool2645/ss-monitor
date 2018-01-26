@@ -17,7 +17,7 @@ type Task struct {
 	IPVer      uint   `gorm:"index"`
 	State      string
 	Worker     string
-	Log        string
+	Log        string `sql:"type:text;"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 	ServerName string
@@ -39,14 +39,14 @@ func CreateTask(db *gorm.DB, task Task) (newTask Task, err error) {
 	return
 }
 
-func GetTasks(db *gorm.DB, class string, state string, ipVer uint, order string, page int) (tasks []Task, err error) {
+func GetTasks(db *gorm.DB, class string, state string, ipVer string, callbackID string, order string, page uint) (tasks []Task, err error) {
 	switch class {
 	case "tester":
-		err = db.Where("class = ?", class).Where("ip_ver = ?", ipVer).Where("state = ?", state).
-			Preload("Node").Order("id " + order).Offset(page * 10).Limit(10).Find(&tasks).Error
+		err = db.Where("callback_id like ?", callbackID).Where("class like ?", class).Where("ip_ver like ?", ipVer).Where("state like ?", state).
+			Preload("Node").Order("id " + order).Offset((page - 1) * 10).Limit(10).Find(&tasks).Error
 	default:
-		err = db.Where("class = ?", class).Where("state = ?", state).
-			Preload("Node").Order("id " + order).Offset(page * 10).Limit(10).Find(&tasks).Error
+		err = db.Where("callback_id like ?", callbackID).Where("class like ?", class).Where("state like ?", state).
+			Preload("Node").Order("id " + order).Offset((page - 1) * 10).Limit(10).Find(&tasks).Error
 	}
 	if err != nil {
 		err = errors.Wrap(err, "GetTasks")
@@ -90,7 +90,7 @@ func AssignTask(db *gorm.DB, id uint, worker string) (err error) {
 	return
 }
 
-func SyncTaskStatus(db *gorm.DB, id uint, worker string, state string, log string) (err error) {
+func UpdateTaskStatus(db *gorm.DB, id uint, worker string, state string, log string) (err error) {
 	var task Task
 	err = db.Where("id = ?", id).Find(&task).Error
 	if err != nil {
@@ -122,7 +122,7 @@ func ResetTask(db *gorm.DB, id uint) (err error) {
 	task.State = "Queuing"
 	task.Log = ""
 	task.Worker = ""
-	err = db.Model(&task).Updates(task).Error
+	err = db.Save(task).Error
 	if err != nil {
 		err = errors.Wrap(err, "ResetTask: Update task")
 		return
