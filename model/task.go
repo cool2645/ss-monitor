@@ -40,13 +40,16 @@ func CreateTask(db *gorm.DB, task Task) (newTask Task, err error) {
 }
 
 func GetTasks(db *gorm.DB, class string, state string, ipVer string, callbackID string, order string, page uint) (tasks []Task, err error) {
+	noLog := "id, callback_id, class, node_id, ip_ver, state, worker, created_at, updated_at, server_name, ss_json"
 	switch class {
 	case "tester":
 		err = db.Where("callback_id like ?", callbackID).Where("class like ?", class).Where("ip_ver like ?", ipVer).Where("state like ?", state).
-			Preload("Node").Order("id " + order).Offset((page - 1) * 10).Limit(10).Find(&tasks).Error
+			Order("id " + order).Offset((page - 1) * 10).Limit(10).
+			Select(noLog).Preload("Node").Find(&tasks).Error
 	default:
 		err = db.Where("callback_id like ?", callbackID).Where("class like ?", class).Where("state like ?", state).
-			Preload("Node").Order("id " + order).Offset((page - 1) * 10).Limit(10).Find(&tasks).Error
+			Order("id " + order).Offset((page - 1) * 10).Limit(10).
+			Select(noLog).Preload("Node").Find(&tasks).Error
 	}
 	if err != nil {
 		err = errors.Wrap(err, "GetTasks")
