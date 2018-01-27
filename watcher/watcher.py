@@ -34,7 +34,7 @@ class Watcher(Worker):
             raise Exception("Try to ping an empty host")
         ping_data_dict = {'a': 'send', 'host': host, 'area[]': 'china'}
         try:
-            r = requests.get(self.pingApiUrl + "?" + urlencode(ping_data_dict), stream=True, timeout=self.connTimeout)
+            r = requests.get(self.pingApiUrl, params=urlencode(ping_data_dict), stream=True, timeout=self.connTimeout)
             if r.encoding is None:
                 r.encoding = 'utf-8'
             for chunck in r.iter_content(self.logSyncingChunckSize, decode_unicode=True):
@@ -49,7 +49,7 @@ class Watcher(Worker):
                 self.rawRst = ""
                 return self.ping(host, depth + 1)
             else:
-                logging.critical("Failed while pinging host %s after trying %d times, exiting..." % (host, self.maxTry))
+                logging.error("Failed while pinging host %s after trying %d times, exiting..." % (host, self.maxTry))
                 return False
         finally:
             self.pinging = False
@@ -76,11 +76,18 @@ class Watcher(Worker):
                     traceback.print_exc(file=sys.stderr)
                     return False
         ping_rst = self.generate_report(self.rawRst)
+        try:
+            ping_rst_str = json.dumps(ping_rst)
+        except:
+            logging.error("Failed while dumping json")
+            traceback.print_exc(file=sys.stderr)
+            return
         state = 'Passing' if ping_rst['lost_all_percent'] < self.lostAllPercentThreshold else 'Failing'
         try:
+            logging.info('Updating task %s result' % task['ID'])
             rst = self._PUT(path='task/' + str(task['ID']), data_dict={'worker': self.name,
                                                                        'state': state,
-                                                                       'log': ping_rst})
+                                                                       'log': ping_rst_str})
             if not (rst.code == HTTPStatus.OK and rst['result']):
                 logging.error('Update task result: %s' % rst)
                 raise Exception('Failed to update task result')
@@ -158,15 +165,6 @@ class Watcher(Worker):
             logging.error('Failed while getting tasks')
             traceback.print_exc(file=sys.stderr)
         return rst['data']
-
-    def task_loop(self):
-        while loop:
-            self.heartbeat()
-            tasks = self.get_tasks()
-            if len(tasks) > 0:
-                c = 0
-                while len(self.threads) < self.maxThreads and c < len(tasks):
-                    th = threading.Thread()
 
     def watch(self, task):
         # Try to assign one task
