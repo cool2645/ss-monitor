@@ -6,6 +6,8 @@ import logging
 import re
 import json
 import threading
+import requests
+from urllib.parse import urlencode
 from http import HTTPStatus
 
 sys.path.append("..")
@@ -18,47 +20,74 @@ class Watcher(Worker):
     def __init__(self):
         super().__init__(__file__)
         self.type = "watcher"
-        self.pingApiUrl = "https://www.ipip.net"
+        # These kawaii variables↓ only works for Threads in Threads Pool
+        self.pingApiUrl = "https://www.ipip.net/ping.php"
         self.parseRE = re.compile(r"parent\.call_ping\((.*?)\);")
         self.lostAllPercentThreshold = float(self.config.get('watcher', 'lostAllPercentThreshold'))
+        self.pinging = True
+        self.toSync = False
+        self.rawRst = ""
+        self.logSyncingChunckSize = int(self.config.get('watcher', 'logSyncingChunckSize'))
 
-    def ping(self, host=None):
+    def ping(self, host=None, depth=0):
         if host is None:
             raise Exception("Try to ping an empty host")
-        bak_api_url = self.apiUrl
-        self.apiUrl = self.pingApiUrl
         ping_data_dict = {'a': 'send', 'host': host, 'area[]': 'china'}
         try:
-            raw_rst = self._GET(path="ping.php", data_dict=ping_data_dict, isDeserialize=False)
-            # logging.info("Raw result for pinging host %s:" % host)
-            # logging.info(str(raw_rst, 'utf8'))
+            r = requests.get(self.pingApiUrl + "?" + urlencode(ping_data_dict), stream=True, timeout=self.connTimeout)
+            if r.encoding is None:
+                r.encoding = 'utf-8'
+            for chunck in r.iter_content(self.logSyncingChunckSize, decode_unicode=True):
+                # filter out keep-alive new chuncks
+                if chunck:
+                    self.rawRst += chunck
+                    self.toSync = True
         except:
-            logging.error("Failed while pinging host %s" % host)
             traceback.print_exc(file=sys.stderr)
-            self.apiUrl = bak_api_url
+            if depth < self.maxTry:
+                logging.warning("Failed while pinging host %s after trying %d times, reconnecting..." % (host, depth))
+                self.rawRst = ""
+                return self.ping(host, depth + 1)
+            else:
+                logging.critical("Failed while pinging host %s after trying %d times, exiting..." % (host, self.maxTry))
+                return False
+        finally:
+            self.pinging = False
+
+    def sync_log(self, task):
+        while self.pinging:
+            if self.toSync:
+                ping_rst = self.generate_report(self.rawRst)
+                try:
+                    ping_rst_str = json.dumps(ping_rst)
+                except:
+                    logging.error("Failed while dumping json")
+                    traceback.print_exc(file=sys.stderr)
+                    continue
+                try:
+                    logging.info('Updating task %s log' % task['ID'])
+                    rst = self._PUT(path='task/' + str(task['ID']), data_dict={'worker': self.name,
+                                                                               'log': ping_rst_str})
+                    if not (rst.code == HTTPStatus.OK and rst['result']):
+                        logging.error('Update task log: %s' % rst)
+                        raise Exception('Failed to update task log')
+                except:
+                    logging.error('Failed to update task %s log' % task['ID'])
+                    traceback.print_exc(file=sys.stderr)
+                    return False
+        ping_rst = self.generate_report(self.rawRst)
+        state = 'Passing' if ping_rst['lost_all_percent'] < self.lostAllPercentThreshold else 'Failing'
         try:
-            rst = self.parse_ping_rst(str(raw_rst, 'utf8'))
+            rst = self._PUT(path='task/' + str(task['ID']), data_dict={'worker': self.name,
+                                                                       'state': state,
+                                                                       'log': ping_rst})
+            if not (rst.code == HTTPStatus.OK and rst['result']):
+                logging.error('Update task result: %s' % rst)
+                raise Exception('Failed to update task result')
         except:
-            logging.error("Failed while parsing raw result")
+            logging.error('Failed to update task %s result ' % task['ID'])
             traceback.print_exc(file=sys.stderr)
-            self.apiUrl = bak_api_url
-        try:
-            data = self.cal_node_status(rst)
-        except:
-            logging.error("Failed while calculating result")
-            traceback.print_exc(file=sys.stderr)
-            self.apiUrl = bak_api_url
-            return "", False
-        data['data'] = rst
-        is_passing = True if data['lost_all_percent'] < self.lostAllPercentThreshold else False
-        try:
-            self.apiUrl = bak_api_url
-            return json.dumps(data), is_passing
-        except:
-            logging.error("Failed while dumping json")
-            traceback.print_exc(file=sys.stderr)
-            self.apiUrl = bak_api_url
-            return "", False
+            return False
 
     def parse_ping_rst(self, raw_rst):
         rst_list = self.parseRE.findall(raw_rst)
@@ -77,15 +106,35 @@ class Watcher(Worker):
                 lost_all_cnt += 1
             res_time_cnt += float(r['rtt_avg'])
             lost_cnt += int(r['loss'])
-        lost_all_percent = float(lost_all_cnt / n) * 100
-        avg_lost_percent = float(lost_cnt / n)
-        avg_res_time = float(res_time_cnt / n)
+        if n != 0:
+            lost_all_percent = float(lost_all_cnt / n) * 100
+            avg_lost_percent = float(lost_cnt / n)
+            avg_res_time = float(res_time_cnt / n)
+        else:
+            lost_all_percent = 0
+            avg_lost_percent = 0
+            avg_res_time = 0
         rst_dict = {'lost_all_percent': lost_all_percent,
                     'avg_lost_percent': avg_lost_percent,
                     'avg_res_time': avg_res_time,
                     'pinger_cnt': n
                     }
         return rst_dict
+
+    def generate_report(self, raw_rst):
+        try:
+            rst = self.parse_ping_rst(raw_rst)
+        except:
+            logging.error("Failed while parsing raw result")
+            traceback.print_exc(file=sys.stderr)
+        try:
+            data = self.cal_node_status(rst)
+        except:
+            logging.error("Failed while calculating result")
+            traceback.print_exc(file=sys.stderr)
+            return "", False
+        data['data'] = rst
+        return data
 
     def heartbeat(self):
         logging.debug("Sending heartbeat package...")
@@ -142,20 +191,13 @@ class Watcher(Worker):
             logging.error('Failed while assigning task %s' % task['ID'])
             traceback.print_exc(file=sys.stderr)
         host = task['Node']['DomainPrefix4'] + '.' + task['Node']['DomainRoot']
+
+        th = threading.Thread(target=self.sync_log, kwargs={'task': task})
+        logging.info('Start log syncing for ping %s' % host)
+        self.pinging = True
+        th.start()
         logging.info('Start pinging %s' % host)
         # Perform ping
-        ping_rst, is_passing = self.ping(host)
-        state = 'Passing' if is_passing else 'Failing'
-        # Update task status and log
-        try:
-            rst = self._PUT(path='task/' + str(task['ID']), data_dict={'worker': self.name,
-                                                                       'state': state,
-                                                                       'log': ping_rst})
-            if not (rst.code == HTTPStatus.OK and rst['result']):
-                logging.error('Update task result: %s' % rst)
-                raise Exception('Failed to update task result')
-        except:
-            logging.error('Failed to update task %s result' % task['ID'])
-            traceback.print_exc(file=sys.stderr)
-            return False
-        return True
+        res = self.ping(host)
+        th.join()
+        return res
