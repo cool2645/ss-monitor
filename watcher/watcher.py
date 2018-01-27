@@ -8,10 +8,10 @@ import json
 import threading
 import requests
 from urllib.parse import urlencode
-from http import HTTPStatus
 
 sys.path.append("..")
 from worker import Worker
+from httpstatus import HTTPStatus
 
 loop = True
 

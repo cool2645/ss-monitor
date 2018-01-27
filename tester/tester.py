@@ -8,10 +8,10 @@ import threading
 import shutil
 import subprocess
 import time
-from http import HTTPStatus
 
 sys.path.append("..")
 from worker import Worker
+from httpstatus import HTTPStatus
 
 loop = True
 
