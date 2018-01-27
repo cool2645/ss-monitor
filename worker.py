@@ -10,7 +10,7 @@ import traceback
 import sys
 from urllib.parse import urlencode
 
-ssl._create_default_https_context = ssl._create_unverified_context
+# ssl._create_default_https_context = ssl._create_unverified_context
 
 
 class DictWrapper(dict):
@@ -69,9 +69,11 @@ class Worker:
         except:
             if depth < self.maxTry:
                 logging.warning("Connection failed after trying %d times, reconnecting..." % depth)
+                traceback.print_exc(file=sys.stderr)
                 return self._GET(path, data_dict, isDeserialize, headers, method, depth + 1)
             else:
                 logging.error("Connection failed after trying %d times, exiting..." % self.maxTry)
+                traceback.print_exc(file=sys.stderr)
                 return
 
     def _POST(self, path, data_dict=None, isDeserialize=True, headers=None, method='POST', depth=0):
@@ -96,9 +98,11 @@ class Worker:
         except:
             if depth < self.maxTry:
                 logging.warning("Connection failed after trying %d times, reconnecting..." % depth)
+                traceback.print_exc(file=sys.stderr)
                 return self._POST(path, data_dict, isDeserialize, headers, method, depth + 1)
             else:
                 logging.error("Connection failed after trying %d times, exiting..." % self.maxTry)
+                traceback.print_exc(file=sys.stderr)
                 return
 
     def _DELETE(self, *args, **nargs):
