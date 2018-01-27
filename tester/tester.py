@@ -94,7 +94,7 @@ class Tester(Worker):
         try:
             subprocess.call("docker stop " + docker_con, shell=True, cwd=test_path, stdout=log_f, stderr=log_f)
         except:
-            logging.error('Failed to run docker %s' % docker_con)
+            logging.error('Failed to stop docker %s' % docker_con)
             traceback.print_exc(file=sys.stderr)
 
         logging.info("Cleaning up")
@@ -104,7 +104,7 @@ class Tester(Worker):
         except:
             logging.error('Failed to remove docker %s' % docker_con)
             traceback.print_exc(file=sys.stderr)
-        print("Removing docker image %s" % docker_img)
+        logging.info("Removing docker image %s" % docker_img)
         try:
             subprocess.call("docker image rm -f " + docker_img, shell=True, cwd=test_path, stdout=log_f, stderr=log_f)
         except:
