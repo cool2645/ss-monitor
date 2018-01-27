@@ -119,13 +119,15 @@ func ResetTask(db *gorm.DB, id uint) (err error) {
 		err = errors.Wrap(err, "ResetTask: Find task")
 		return
 	}
-	task.State = "Queuing"
-	task.Log = ""
-	task.Worker = ""
-	err = db.Save(task).Error
-	if err != nil {
-		err = errors.Wrap(err, "ResetTask: Update task")
-		return
+	if task.State != "Queuing" {
+		task.State = "Queuing"
+		task.Log = ""
+		task.Worker = ""
+		err = db.Save(task).Error
+		if err != nil {
+			err = errors.Wrap(err, "ResetTask: Update task")
+			return
+		}
 	}
 	return
 }
