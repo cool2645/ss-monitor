@@ -1,2 +1,5 @@
 .idea
 __pycache__
+config.ini
+*.pyc
+shadowsocks.json
