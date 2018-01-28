@@ -65,7 +65,7 @@ class Tester(Worker):
 
         try:
             rst = self._PUT(path='task/' + id, data_dict={'worker': self.name,
-                                                                       'state': 'Running'})
+                                                          'state': 'Running'})
             if not (rst.code == HTTPStatus.OK and rst['result']):
                 logging.error('Update task status to Running result: %s' % rst)
                 raise Exception('Update task status to Running failed')
@@ -77,7 +77,8 @@ class Tester(Worker):
         docker_con = "test-your-ss-con" + id
         logging.info("Start building docker %s" % docker_img)
         try:
-            subprocess.call("docker build -t " + docker_img + " .", shell=True, cwd=test_path, stdout=log_f, stderr=log_f)
+            subprocess.call("docker build -t " + docker_img + " .", shell=True, cwd=test_path, stdout=log_f,
+                            stderr=log_f)
         except:
             logging.error('Failed to build docker %s' % docker_img)
             traceback.print_exc(file=sys.stderr)
@@ -85,7 +86,7 @@ class Tester(Worker):
         logging.info("Start running docker %s" % docker_con)
         try:
             subprocess.call("docker run --name=\"" + docker_con + "\" " + docker_img, shell=True, cwd=test_path,
-                        stdout=log_f, stderr=log_f)
+                            stdout=log_f, stderr=log_f)
         except:
             logging.error('Failed to run docker %s' % docker_con)
             traceback.print_exc(file=sys.stderr)
@@ -148,7 +149,7 @@ class Tester(Worker):
             try:
                 logging.info('Updating task %s log' % task['ID'])
                 rst = self._PUT(path='task/' + str(task['ID']), data_dict={'worker': self.name,
-                                                                               'log': log})
+                                                                           'log': log})
                 if not (rst.code == HTTPStatus.OK and rst['result']):
                     logging.error('Update task log: %s' % rst)
                     raise Exception('Failed to update task log')
@@ -234,9 +235,15 @@ class Tester(Worker):
             logging.error('Failed while assigning task %s' % task['ID'])
             traceback.print_exc(file=sys.stderr)
 
-        host = task['Node']['Name'] + ' ' + ('IPv6' if task['IPVer'] == 6 else 'IPv4')
+        if task['Node']['ID'] == 0:
+            host = task['ServerName']
+        else:
+            host = task['Node']['Name'] + ' ' + ('IPv6' if task['IPVer'] == 6 else 'IPv4')
         id = task['ID']
-        json = task['Node']['Ss6Json'] if task['IPVer'] == 6 else task['Node']['Ss4Json']
+        if task['Node']['ID'] == 0:
+            json = task['SsJson']
+        else:
+            json = task['Node']['Ss6Json'] if task['IPVer'] == 6 else task['Node']['Ss4Json']
 
         try:
             self.make_tmp(self.tmpPath)
@@ -269,6 +276,6 @@ class Tester(Worker):
             print("Creating directory " + tmp_path)
             os.makedirs(tmp_path)
         if not os.path.exists(tmp_path + '/log'):
-           print("Creating directory " + tmp_path + '/log')
-           os.makedirs(tmp_path + '/log')
+            print("Creating directory " + tmp_path + '/log')
+            os.makedirs(tmp_path + '/log')
         return

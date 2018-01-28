@@ -45,7 +45,8 @@ class Watcher(Worker):
         except:
             traceback.print_exc(file=sys.stderr)
             if depth < self.maxTry:
-                logging.warning("Failed while pinging host %s after trying %d times, reconnecting..." % (host, depth))
+                logging.warning("Failed while pinging host %s after trying %d times, reconnecting..." % (host,
+                                                                                                         (depth + 1)))
                 self.rawRst = ""
                 return self.ping(host, depth + 1)
             else:
@@ -188,7 +189,10 @@ class Watcher(Worker):
         except:
             logging.error('Failed while assigning task %s' % task['ID'])
             traceback.print_exc(file=sys.stderr)
-        host = task['Node']['DomainPrefix4'] + '.' + task['Node']['DomainRoot']
+        if task['Node']['ID'] == 0:
+            host = task['ServerName']
+        else:
+            host = task['Node']['DomainPrefix4'] + '.' + task['Node']['DomainRoot']
 
         th = threading.Thread(target=self.sync_log, kwargs={'task': task})
         logging.info('Start log syncing for ping %s' % host)

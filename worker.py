@@ -3,14 +3,11 @@
 from urllib.request import Request, urlopen
 from configparser import ConfigParser
 import json
-import ssl
 import os
 import logging
 import traceback
 import sys
 from urllib.parse import urlencode
-
-# ssl._create_default_https_context = ssl._create_unverified_context
 
 
 class DictWrapper(dict):
@@ -73,11 +70,12 @@ class Worker:
                 return data
         except:
             if depth < self.maxTry:
-                logging.warning("Connection failed after trying %d times, reconnecting..." % depth)
+                logging.warning("Connection failed after trying %d times, reconnecting..." % (depth + 1))
                 traceback.print_exc(file=sys.stderr)
                 return self._GET(path, data_dict, isDeserialize, headers, method, depth + 1)
             else:
                 logging.error("Connection failed after trying %d times, exiting..." % self.maxTry)
+                logging.error("Data: %s" % data)
                 traceback.print_exc(file=sys.stderr)
                 return
 
@@ -107,11 +105,12 @@ class Worker:
                 return data
         except:
             if depth < self.maxTry:
-                logging.warning("Connection failed after trying %d times, reconnecting..." % depth)
+                logging.warning("Connection failed after trying %d times, reconnecting..." % (depth + 1))
                 traceback.print_exc(file=sys.stderr)
                 return self._POST(path, data_dict, isDeserialize, headers, method, depth + 1)
             else:
                 logging.error("Connection failed after trying %d times, exiting..." % self.maxTry)
+                logging.error("Data: %s" % data)
                 traceback.print_exc(file=sys.stderr)
                 return
 
