@@ -2,6 +2,7 @@ port = 6687
 
 allow_origin = ["*"]
 
+api_key = "helloworld"
 tg_key = "123456789:AAHEUURbcdefghijklmn123opqrstuvwxyz"
 
 db_name = "ssmonitor"

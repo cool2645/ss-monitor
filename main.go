@@ -14,6 +14,7 @@ import (
 	"github.com/yanzay/log"
 	"github.com/cool2645/ss-monitor/model"
 	"github.com/cool2645/ss-monitor/httphandler"
+	. "github.com/cool2645/ss-monitor/config"
 )
 
 var mux = httprouter.New()
@@ -26,7 +27,7 @@ func main() {
 		panic(err)
 	}
 
-	db, err := gorm.Open("mysql", parseDSN(GlobCfg))
+	db, err := gorm.Open("mysql", ParseDSN(GlobCfg))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -48,7 +49,7 @@ func main() {
 	mux.GET("/api/task", httphandler.GetTasks)
 	mux.GET("/api/task/:id", httphandler.GetTask)
 	mux.GET("/api/task/:id/log", httphandler.GetTaskLog)
-	// Needs middleware here
+
 	mux.POST("/api/task", httphandler.NewTask)
 	mux.PUT("/api/task/:id/assign", httphandler.AssignTask)
 	mux.PUT("/api/task/:id", httphandler.SyncTaskStatus)

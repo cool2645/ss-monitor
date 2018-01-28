@@ -9,6 +9,9 @@ import (
 )
 
 func HandleHeartbeat(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	if !authAccessKey(w, req) {
+		return
+	}
 	req.ParseForm()
 	if (len(req.Form["class"]) != 1) {
 		res := map[string]interface{}{
