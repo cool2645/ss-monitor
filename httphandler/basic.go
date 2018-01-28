@@ -22,11 +22,11 @@ func responseJson(w http.ResponseWriter, data map[string]interface{}, httpStatus
 }
 
 func Broadcast(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	if !authAccessKey(w, req)  {
+	if !auth(w, req)  {
 		return
 	}
 	req.ParseForm()
-	if (len(req.Form["msg"]) != 0 && len(req.Form["worker"]) != 0 && len(req.Form["class"]) != 0) {
+	if len(req.Form["msg"]) != 0 && len(req.Form["worker"]) != 0 && len(req.Form["class"]) != 0 {
 		broadcaster.Broadcast(req.Form["msg"][0], req.Form["worker"][0], req.Form["class"][0])
 		res := map[string]interface{}{
 			"code":   http.StatusOK,

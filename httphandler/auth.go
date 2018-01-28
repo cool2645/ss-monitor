@@ -57,6 +57,21 @@ func checkAdmin(w http.ResponseWriter, req *http.Request) (result bool) {
 	return
 }
 
+func auth(w http.ResponseWriter, req *http.Request) (result bool) {
+	if !checkAccessKey(req) && !checkAdmin(w, req) {
+		res := map[string]interface{}{
+			"code": http.StatusUnauthorized,
+			"result": false,
+			"msg":    "Authorize failed.",
+		}
+		responseJson(w, res, http.StatusUnauthorized)
+		result = false
+		return
+	}
+	result = true
+	return
+}
+
 func Login(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	sess, _ := globalSessions.SessionStart(w, req)
 	defer sess.SessionRelease(w)
@@ -69,7 +84,7 @@ func Login(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		responseJson(w, res, http.StatusFound)
 	} else {
 		req.ParseForm()
-		if (len(req.Form["username"]) != 1) {
+		if len(req.Form["username"]) != 1 {
 			res := map[string]interface{}{
 				"code": http.StatusBadRequest,
 				"result": false,
@@ -79,7 +94,7 @@ func Login(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			return
 		}
 		username = req.Form["username"][0]
-		if (len(req.Form["password"]) != 1) {
+		if len(req.Form["password"]) != 1 {
 			res := map[string]interface{}{
 				"code": http.StatusBadRequest,
 				"result": false,

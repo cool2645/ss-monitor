@@ -16,22 +16,22 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	callbackID := "%"
 	order := "asc"
 	var page uint = 1
-	if (len(req.Form["class"]) == 1) {
+	if len(req.Form["class"]) == 1 {
 		class = req.Form["class"][0]
 	}
-	if (len(req.Form["state"]) == 1) {
+	if len(req.Form["state"]) == 1 {
 		state = req.Form["state"][0]
 	}
-	if (len(req.Form["ip_ver"]) == 1) {
+	if len(req.Form["ip_ver"]) == 1 {
 		ipVer = req.Form["ip_ver"][0]
 	}
-	if (len(req.Form["callback_id"]) == 1) {
+	if len(req.Form["callback_id"]) == 1 {
 		callbackID = req.Form["callback_id"][0]
 	}
-	if (len(req.Form["order"]) == 1) {
+	if len(req.Form["order"]) == 1 {
 		order = req.Form["order"][0]
 	}
-	if (len(req.Form["page"]) == 1) {
+	if len(req.Form["page"]) == 1 {
 		page64, err := strconv.ParseUint(req.Form["page"][0], 10, 32)
 		if err != nil {
 			logging.Error(err)
@@ -154,11 +154,8 @@ func GetTaskLog(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 }
 
 func NewTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	if !authAdmin(w, req) {
-		return
-	}
 	req.ParseForm()
-	if (len(req.Form["class"]) != 1) {
+	if len(req.Form["class"]) != 1 {
 		res := map[string]interface{}{
 			"code":   http.StatusBadRequest,
 			"result": false,
@@ -169,7 +166,7 @@ func NewTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	}
 	class := req.Form["class"][0]
 	var callbackID, nodeID, ipVer uint = 0, 0, 4
-	if (len(req.Form["callback_id"]) == 1) {
+	if len(req.Form["callback_id"]) == 1 {
 		callbackID64, err := strconv.ParseUint(req.Form["callback_id"][0], 10, 32)
 		if err != nil {
 			logging.Error(err)
@@ -183,7 +180,7 @@ func NewTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		}
 		callbackID = uint(callbackID64)
 	}
-	if (len(req.Form["node_id"]) == 1) {
+	if len(req.Form["node_id"]) == 1 {
 		nodeID64, err := strconv.ParseUint(req.Form["node_id"][0], 10, 32)
 		if err != nil {
 			logging.Error(err)
@@ -197,7 +194,25 @@ func NewTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		}
 		nodeID = uint(nodeID64)
 	}
-	if (len(req.Form["ip_ver"]) == 1) {
+	var serverName, ssJson string
+	if nodeID == 0 {
+		if len(req.Form["server_name"]) != 1 {
+			res := map[string]interface{}{
+				"code":   http.StatusBadRequest,
+				"result": false,
+				"msg":    "Invalid server name.",
+			}
+			responseJson(w, res, http.StatusBadRequest)
+			return
+		}
+		serverName = req.Form["server_name"][0]
+		if len(req.Form["ss_json"]) == 1 {
+			ssJson = req.Form["ss_json"][0]
+		}
+	} else if !authAdmin(w, req) {
+		return
+	}
+	if len(req.Form["ip_ver"]) == 1 {
 		ipVer64, err := strconv.ParseUint(req.Form["ip_ver"][0], 10, 32)
 		if err != nil {
 			logging.Error(err)
@@ -216,6 +231,8 @@ func NewTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	task.CallbackID = callbackID
 	task.NodeID = nodeID
 	task.IPVer = ipVer
+	task.ServerName = serverName
+	task.SsJson = ssJson
 	task, err := model.CreateTask(model.Db, task)
 	if err != nil {
 		logging.Error(err)
@@ -240,7 +257,7 @@ func AssignTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 		return
 	}
 	req.ParseForm()
-	if (len(req.Form["worker"]) != 1) {
+	if len(req.Form["worker"]) != 1 {
 		res := map[string]interface{}{
 			"code":   http.StatusBadRequest,
 			"result": false,
@@ -295,7 +312,7 @@ func SyncTaskStatus(w http.ResponseWriter, req *http.Request, ps httprouter.Para
 		return
 	}
 	req.ParseForm()
-	if (len(req.Form["worker"]) != 1) {
+	if len(req.Form["worker"]) != 1 {
 		res := map[string]interface{}{
 			"code":   http.StatusBadRequest,
 			"result": false,
@@ -318,10 +335,10 @@ func SyncTaskStatus(w http.ResponseWriter, req *http.Request, ps httprouter.Para
 	}
 	taskID := uint(taskID64)
 	var state, log string
-	if (len(req.Form["state"]) == 1) {
+	if len(req.Form["state"]) == 1 {
 		state = req.Form["state"][0]
 	}
-	if (len(req.Form["log"]) == 1) {
+	if len(req.Form["log"]) == 1 {
 		log = req.Form["log"][0]
 	}
 	err = model.UpdateTaskStatus(model.Db, taskID, worker, state, log)

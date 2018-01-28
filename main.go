@@ -54,11 +54,21 @@ func main() {
 	mux.PUT("/api/task/:id/assign", httphandler.AssignTask)
 	mux.PUT("/api/task/:id", httphandler.SyncTaskStatus)
 	mux.DELETE("/api/task/:id", httphandler.ResetTask)
+	mux.POST("/api/task/:id/callback", httphandler.Pong)
 
 	mux.POST("/api/broadcast", httphandler.Broadcast)
 
 	mux.POST("/api/auth", httphandler.Login)
 	mux.DELETE("/api/auth", httphandler.Logout)
+
+	mux.GET("/api/node", httphandler.GetNodes)
+	mux.GET("/api/node/:id", httphandler.GetNode)
+	mux.POST("/api/node", httphandler.NewNode)
+	mux.PUT("/api/node/:id", httphandler.EditNode)
+	mux.PUT("/api/node/:id/enable/:name", httphandler.SetNodeTaskEnable)
+	mux.DELETE("/api/node/:id/enable/:name", httphandler.SetNodeTaskDisable)
+	mux.DELETE("/api/node/:id", httphandler.DeleteNode)
+	mux.DELETE("/api/node/:id/status/isCleaning", httphandler.ResetNode)
 
 	//mux.ServeFiles("/static/*filepath", http.Dir("static"))
 

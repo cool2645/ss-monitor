@@ -27,7 +27,7 @@ type Task struct {
 var mux sync.Mutex
 
 func CreateTask(db *gorm.DB, task Task) (newTask Task, err error) {
-	// Default Value
+
 	task.State = "Queuing"
 
 	err = db.Create(&task).Error

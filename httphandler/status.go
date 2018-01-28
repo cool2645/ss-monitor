@@ -13,7 +13,7 @@ func HandleHeartbeat(w http.ResponseWriter, req *http.Request, ps httprouter.Par
 		return
 	}
 	req.ParseForm()
-	if (len(req.Form["class"]) != 1) {
+	if len(req.Form["class"]) != 1 {
 		res := map[string]interface{}{
 			"code":   http.StatusBadRequest,
 			"result": false,
@@ -24,7 +24,7 @@ func HandleHeartbeat(w http.ResponseWriter, req *http.Request, ps httprouter.Par
 	}
 	class := req.Form["class"][0]
 	var ipVer uint
-	if (len(req.Form["ip_ver"]) == 1) {
+	if len(req.Form["ip_ver"]) == 1 {
 		ipVer64, err := strconv.ParseUint(req.Form["ip_ver"][0], 10, 32)
 		if err != nil {
 			log.Error(err)
