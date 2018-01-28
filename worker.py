@@ -50,9 +50,14 @@ class Worker:
 
     def _GET(self, path, data_dict=None, isDeserialize=True, headers=None, method='GET', depth=0):
         data = urlencode(data_dict)
+        if headers is None:
+            headers = {'X-Access-Key': self.apiKey}
+        else:
+            headers['X-Access-Key'] = self.apiKey
         req = Request(
             url=self.apiUrl + ('/' + path if path else '') + '?' + data,
-            method=method
+            method=method,
+            headers=headers
         )
         try:
             with urlopen(req, timeout=self.connTimeout) as res:
@@ -78,9 +83,14 @@ class Worker:
 
     def _POST(self, path, data_dict=None, isDeserialize=True, headers=None, method='POST', depth=0):
         data = urlencode(data_dict)
+        if headers is None:
+            headers = {'X-Access-Key': self.apiKey}
+        else:
+            headers['X-Access-Key'] = self.apiKey
         req = Request(
             url=self.apiUrl + ('/' + path if path else ''),
             method=method,
+            headers=headers,
             data=bytes(data, 'utf8')
         )
         try:
