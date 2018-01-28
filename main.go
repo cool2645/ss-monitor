@@ -6,7 +6,6 @@ import (
 	"github.com/urfave/negroni"
 	"strconv"
 	"github.com/julienschmidt/httprouter"
-	"github.com/astaxie/beego/session"
 	"github.com/rs/cors"
 	"github.com/cool2645/ss-monitor/broadcaster"
 	"github.com/jinzhu/gorm"
@@ -18,7 +17,6 @@ import (
 )
 
 var mux = httprouter.New()
-var globalSessions *session.Manager
 
 func main() {
 
@@ -39,6 +37,8 @@ func main() {
 
 	go broadcaster.ServeTelegram(model.Db, GlobCfg.TG_KEY)
 
+	httphandler.InitSession()
+
 	mux.GET("/api", httphandler.Pong)
 
 	mux.GET("/api/status", httphandler.Pong)
@@ -56,6 +56,9 @@ func main() {
 	mux.DELETE("/api/task/:id", httphandler.ResetTask)
 
 	mux.POST("/api/broadcast", httphandler.Broadcast)
+
+	mux.POST("/api/auth", httphandler.Login)
+	mux.DELETE("/api/auth", httphandler.Logout)
 
 	//mux.ServeFiles("/static/*filepath", http.Dir("static"))
 

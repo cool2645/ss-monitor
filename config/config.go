@@ -11,6 +11,12 @@ type Config struct {
 	DB_USER      string   `toml:"db_user"`
 	DB_PASS      string   `toml:"db_pass"`
 	DB_CHARSET   string   `toml:"db_charset"`
+	ADMIN        []Admin  `toml:"admin"`
+}
+
+type Admin struct {
+	Username string
+	Password string
 }
 
 func ParseDSN(config Config) string {

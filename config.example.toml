@@ -9,3 +9,7 @@ db_name = "ssmonitor"
 db_user = "root"
 db_pass = ""
 db_charset = "utf8"
+
+[[admin]]
+username = "root"
+password = "root"
