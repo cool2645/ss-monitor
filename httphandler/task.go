@@ -49,6 +49,13 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		responseJson(w, res, http.StatusInternalServerError)
 		return
 	}
+	if !checkAccessKey(req) && !checkAdmin(w, req) {
+		for i, _ := range tasks {
+			tasks[i].Node.Ss4Json = ""
+			tasks[i].Node.Ss6Json = ""
+			tasks[i].SsJson = ""
+		}
+	}
 	res := map[string]interface{}{
 		"code":   http.StatusOK,
 		"result": true,
@@ -90,6 +97,11 @@ func GetTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		}
 		responseJson(w, res, http.StatusInternalServerError)
 		return
+	}
+	if !checkAccessKey(req) && !checkAdmin(w, req) {
+		task.Node.Ss4Json = ""
+		task.Node.Ss6Json = ""
+		task.SsJson = ""
 	}
 	res := map[string]interface{}{
 		"code":   http.StatusOK,
@@ -142,6 +154,9 @@ func GetTaskLog(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 }
 
 func NewTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	if !authAdmin(w, req) {
+		return
+	}
 	req.ParseForm()
 	if (len(req.Form["class"]) != 1) {
 		res := map[string]interface{}{
@@ -221,6 +236,9 @@ func NewTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 }
 
 func AssignTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	if !authAccessKey(w, req) {
+		return
+	}
 	req.ParseForm()
 	if (len(req.Form["worker"]) != 1) {
 		res := map[string]interface{}{
@@ -273,6 +291,9 @@ func AssignTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 }
 
 func SyncTaskStatus(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	if !authAccessKey(w, req) {
+		return
+	}
 	req.ParseForm()
 	if (len(req.Form["worker"]) != 1) {
 		res := map[string]interface{}{
@@ -341,6 +362,9 @@ func SyncTaskStatus(w http.ResponseWriter, req *http.Request, ps httprouter.Para
 }
 
 func ResetTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	if !authAdmin(w, req) {
+		return
+	}
 	taskID64, err := strconv.ParseUint(ps.ByName("id"), 10, 32)
 	if err != nil {
 		logging.Error(err)
