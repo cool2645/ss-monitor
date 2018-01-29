@@ -4,6 +4,11 @@ allow_origin = ["*"]
 
 api_key = "helloworld"
 tg_key = "123456789:AAHEUURbcdefghijklmn123opqrstuvwxyz"
+# The manager will watch the workers once in every `monitor_interval` seconds,
+# An alarm will be set off if a worker haven't heartbeat in the past `heartbeat_alarm_val` seconds.
+heartbeat_alarm_val = 60
+monitor_interval = 30
+manager_name = "NyaM"
 
 db_name = "ssmonitor"
 db_user = "root"
