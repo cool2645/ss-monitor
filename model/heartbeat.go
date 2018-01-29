@@ -8,23 +8,31 @@ import (
 )
 
 type Heartbeat struct {
-	ID        uint      `gorm:"AUTO_INCREMENT"`
-	Class     string    `gorm:"not null;index"`
-	IPVer     uint      `gorm:"index"`
-	Name      string
-	Time      int64
-	CreatedAt time.Time `gorm:"index"`
+	ID        uint   `gorm:"AUTO_INCREMENT"`
+	Class     string `gorm:"not null;index"`
+	IPVer     uint   `gorm:"index"`
+	Name      string `gorm:"index"`
+	Time      int64  `gorm:"index"`
+	CreatedAt time.Time
 }
 
-func WorkersStatus() {
-
+func GetHeartbeats(db *gorm.DB, time int64, class string, ipVer uint) (heartbeats []Heartbeat, err error) {
+	switch class {
+	case "tester":
+		err = db.Where("time > ?", time).Where("class like ?", class).Where("ip_ver like ?", ipVer).
+			Where("ip_ver like ?", 10).Order("name asc").Find(&heartbeats).Error
+	default:
+		err = db.Where("time > ?", time).Where("class like ?", class).
+			Order("name asc").Find(&heartbeats).Error
+	}
+	if err != nil {
+		err = errors.Wrap(err, "GetHeartbeats")
+		return
+	}
+	return
 }
 
-func SyncWorkerStatus() {
-
-}
-
-func SaveHeartbeat(db *gorm.DB, class string, ipVer uint, name string) (newHeartbeat Heartbeat, err error) {
+func SaveHeartbeat(db *gorm.DB, class string, ipVer uint, name string, t int64) (newHeartbeat Heartbeat, err error) {
 	var count int
 	var heartbeat Heartbeat
 	err = db.Model(&Heartbeat{}).Where("name = ?", name).Count(&count).Error
@@ -35,7 +43,7 @@ func SaveHeartbeat(db *gorm.DB, class string, ipVer uint, name string) (newHeart
 	if count == 0 {
 		heartbeat.Class = class
 		heartbeat.IPVer = ipVer
-		heartbeat.Time = time.Now().Unix()
+		heartbeat.Time = t
 		heartbeat.Name = name
 		err = db.Create(&heartbeat).Error
 		if err != nil {
@@ -52,7 +60,7 @@ func SaveHeartbeat(db *gorm.DB, class string, ipVer uint, name string) (newHeart
 		}
 		heartbeat.Class = class
 		heartbeat.IPVer = ipVer
-		heartbeat.Time = time.Now().Unix()
+		heartbeat.Time = t
 		err = db.Model(&heartbeat).Updates(heartbeat).Error
 		if err != nil {
 			err = errors.Wrap(err, "SaveHeartbeat: UpdateHeartbeat")

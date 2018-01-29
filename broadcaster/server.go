@@ -9,26 +9,31 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"sync"
 	"fmt"
+	. "github.com/cool2645/ss-monitor/config"
 )
 
-var subscribedChats []int64
+var subscribedChats = make(map[int64]int64)
 var mux sync.RWMutex
 var ch = make(chan string)
+var ManagerChan = make(chan int64)
+var bot *tg.BotAPI
 
 func ServeTelegram(db *gorm.DB, apiKey string) {
 	log.Infof("Reading subscribed chats from database %s", time.Now())
-	var err error
-	subscribedChats, err = model.ListSubscribers(db)
+	subscribers, err := model.ListSubscribers(db)
 	if err != nil {
 		log.Fatal(err)
+	}
+	for _, v := range subscribers {
+		subscribedChats[v] = v
 	}
 	log.Warningf("%v %s", subscribedChats, time.Now())
 	log.Infof("Started serve telegram %s", time.Now())
-	bot, err := tg.NewBotAPI(apiKey)
+	bot, err = tg.NewBotAPI(apiKey)
 	if err != nil {
 		log.Fatal(err)
 	}
-	go pushMessage(bot, ch)
+	go pushMessage(ch)
 	u := tg.NewUpdate(0)
 	u.Timeout = 60
 	updates, err := bot.GetUpdatesChan(u)
@@ -40,18 +45,20 @@ func ServeTelegram(db *gorm.DB, apiKey string) {
 		if m.IsCommand() {
 			switch m.Command() {
 			case "start":
-				replyMessage(start(db, m), bot, m)
+				ReplyMessage(start(db, m), "", "broadcaster", m.Chat.ID)
 			case "stop":
-				replyMessage(stop(db, m), bot, m)
+				ReplyMessage(stop(db, m), "", "broadcaster", m.Chat.ID)
+			case "ping":
+				ManagerChan <- m.Chat.ID
 			}
 		}
 	}
 }
 
-func pushMessage(bot *tg.BotAPI, c chan string) {
+func pushMessage(c chan string) {
 	var m string
 	for {
-		m = <- c
+		m = <-c
 		mux.RLock()
 		for _, v := range subscribedChats {
 			msg := tg.NewMessage(v, m)
@@ -65,7 +72,7 @@ func pushMessage(bot *tg.BotAPI, c chan string) {
 func start(db *gorm.DB, m *tg.Message) string {
 	mux.Lock()
 	defer mux.Unlock()
-	subscribedChats = append(subscribedChats, m.Chat.ID)
+	subscribedChats[m.Chat.ID] = m.Chat.ID
 	_, err := model.SaveSubscriber(db, m.Chat.ID)
 	if err != nil {
 		log.Fatal(err)
@@ -76,13 +83,7 @@ func start(db *gorm.DB, m *tg.Message) string {
 func stop(db *gorm.DB, m *tg.Message) string {
 	mux.Lock()
 	defer mux.Unlock()
-	var newSubscribedChats []int64
-	for _, v := range subscribedChats {
-		if v != m.Chat.ID {
-			newSubscribedChats = append(newSubscribedChats, v)
-		}
-	}
-	subscribedChats = newSubscribedChats
+	delete(subscribedChats, m.Chat.ID)
 	err := model.RemoveSubscriber(db, m.Chat.ID)
 	if err != nil {
 		log.Fatal(err)
@@ -90,14 +91,40 @@ func stop(db *gorm.DB, m *tg.Message) string {
 	return "You'll no longer receive messages from this bot."
 }
 
-func replyMessage(text string, bot *tg.BotAPI, req *tg.Message) {
-	msg := tg.NewMessage(req.Chat.ID, text)
-	msg.ReplyToMessageID = req.MessageID
+func ReplyMessage(text string, worker string, class string, reqChatID int64) {
+	textf := formatMessage(text, worker, class)
+	msg := tg.NewMessage(reqChatID, textf)
+	msg.ParseMode = "Markdown"
 	bot.Send(msg)
 }
 
+func formatMessage(msg string, worker string, class string) (msgf string) {
+	if class == "broadcaster" {
+		if v, ok := GlobCfg.FRIENDLY_NAME[class]; ok {
+			msgf = fmt.Sprintf("%s\n_By %s_", msg, v)
+		} else {
+			msgf = fmt.Sprintf("%s\n_By %s_", msg, "broadcaster")
+		}
+		return
+	}
+	if msg[len(msg)-1] != '\n' {
+		if v, ok := GlobCfg.FRIENDLY_NAME[class]; ok {
+			msgf = fmt.Sprintf("%s\n_By %s(%s)_", msg, worker, v)
+		} else {
+			msgf = fmt.Sprintf("%s\n_By %s(%s)_", msg, worker, class)
+		}
+	} else {
+		if v, ok := GlobCfg.FRIENDLY_NAME[class]; ok {
+			msgf = fmt.Sprintf("%s_By %s(%s)_", msg, worker, v)
+		} else {
+			msgf = fmt.Sprintf("%s_By %s(%s)_", msg, worker, class)
+		}
+	}
+	return
+}
+
 func Broadcast(msg string, worker string, class string) {
-	msgf := fmt.Sprintf("%s\n_By %s(%s)_", msg, worker, class)
+	msgf := formatMessage(msg, worker, class)
 	ch <- msgf
 	return
 }

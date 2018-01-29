@@ -14,6 +14,7 @@ import (
 	"github.com/cool2645/ss-monitor/model"
 	"github.com/cool2645/ss-monitor/httphandler"
 	. "github.com/cool2645/ss-monitor/config"
+	"github.com/cool2645/ss-monitor/manager"
 )
 
 var mux = httprouter.New()
@@ -36,13 +37,14 @@ func main() {
 	model.Db = db
 
 	go broadcaster.ServeTelegram(model.Db, GlobCfg.TG_KEY)
+	manager.Init()
 
 	httphandler.InitSession()
 
 	mux.GET("/api", httphandler.Pong)
 
 	mux.GET("/api/status", httphandler.Pong)
-	mux.GET("/api/status/worker", httphandler.Pong)
+	mux.GET("/api/status/worker", httphandler.GetWorkerStatus)
 	mux.GET("/api/status/node", httphandler.Pong)
 	mux.POST("/api/status/worker/:name", httphandler.HandleHeartbeat)
 

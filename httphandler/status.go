@@ -3,9 +3,9 @@ package httphandler
 import (
 	"net/http"
 	"github.com/julienschmidt/httprouter"
-	"github.com/cool2645/ss-monitor/model"
 	"github.com/yanzay/log"
 	"strconv"
+	"github.com/cool2645/ss-monitor/manager"
 )
 
 func HandleHeartbeat(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
@@ -32,7 +32,7 @@ func HandleHeartbeat(w http.ResponseWriter, req *http.Request, ps httprouter.Par
 		ipVer = uint(ipVer64)
 	}
 	name := ps.ByName("name")
-	_, err := model.SaveHeartbeat(model.Db, class, ipVer, name)
+	_, err := manager.UpdateWorkerStatus(class, ipVer, name)
 	if err != nil {
 		log.Error(err)
 		res := map[string]interface{}{
@@ -47,6 +47,16 @@ func HandleHeartbeat(w http.ResponseWriter, req *http.Request, ps httprouter.Par
 		"code":   http.StatusOK,
 		"result": true,
 		"msg":    "success",
+	}
+	responseJson(w, res, http.StatusOK)
+}
+
+func GetWorkerStatus(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	workers := manager.GetWorkerStatus()
+	res := map[string]interface{}{
+		"code":   http.StatusOK,
+		"result": true,
+		"data":   workers,
 	}
 	responseJson(w, res, http.StatusOK)
 }
