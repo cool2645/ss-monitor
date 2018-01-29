@@ -21,7 +21,7 @@ class Cleaner(Worker):
     def __init__(self):
         super().__init__(__file__)
         self.type = "cleaner"
-        self.tasklog = ""
+        self.taskLog = []
         self.tmpSnapshotID = ""
         self.targetVPS = None
         self.queryInterval = int(self.config.get('cleaner', 'queryInterval'))
@@ -29,16 +29,22 @@ class Cleaner(Worker):
         self.destroyWaitTime = int(self.config.get('cleaner', 'destroyWaitTime'))
         self.timeZone = int(self.config.get('cleaner', 'timeZone'))
         self.oldVPSList = []
+        self.oldIPv4List = []
         self.vultrDestroyCoolTime = int(self.config.get('cleaner', 'vultrDestroyCoolTime'))
         self.destroyPool = ThreadPool(processes=self.maxThreads * 4)
         self.destroyResults = []
         self.VULTR512MPLANID = '200'
         self.VULTR1024MPLANID = '201'
         self.lastException = None
+        self.taskState = ['Pending', 'Cleaning(Destroying)', 'Cleaning(Creating)',
+                          'Cleaning(Watching)', 'Shiny☆', 'Failing', 'Exception']
+        self.taskStateID = 0
+        self.birthTime = int(time.time())
         # Init Vultr api instance
         self.vultrApikey = self.config.get('cleaner', 'vultrApikey')
         self.vultr = Vultr(self.vultrApikey)
         # Function dic for different VPS providers
+        self.supportedProviderList = ['Vultr']
         self.create_tmp_snapshot = {
             'Vultr': self.create_tmp_snapshot_vultr
         }
@@ -70,26 +76,136 @@ class Cleaner(Worker):
             traceback.print_exc(file=sys.stderr)
         return rst['data']
 
-    def clean(self, task):
-        provider = task['Node']['Provider']
-        need_destroy_snapshot = False
-        # Get VPS info
-        if not self.get_server_info[provider](task):
+    def sync_log_and_broadcast(self, task, msg):
+        self.taskLog.append(msg)
+        return self.sync_log(task) and self.broadcast(msg)
+
+    def broadcast(self, msg):
+        try:
+            logging.debug('Broadcasting message: %s' % msg)
+            rst = self._POST('broadcast', data_dict={
+                'class': 'cleaner',
+                'worker': self.name,
+                'msg': msg
+            })
+            if rst.code == HTTPStatus.OK and rst['result']:
+                return True
+            else:
+                raise Exception('Failed while broadcasting, message: %s' % msg)
+        except:
+            logging.error('Failed while broadcasting, message: %s' % msg)
             return False
-        # Set target snapshot ID, create temporary snapshot if needed
+
+    def sync_log(self, task):
+        log_dict = {
+            'taskStateID': self.taskStateID,
+            'taskElapsedTime': int(time.time()) - self.birthTime,
+            'taskLogList': self.taskLog,
+            'oldVPSCount': len(self.oldVPSList),
+            'oldIPv4List': self.oldIPv4List,
+            'oldVPSList': self.oldVPSList,
+        }
+        try:
+            logs = json.dumps(log_dict)
+            logging.debug('Syncing log: %s' % logs)
+            rst = self._PUT(path='task/' + str(task['ID']), data_dict={'worker': self.name,
+                                                                       'log': logs})
+            if rst.code == HTTPStatus.OK and rst['result']:
+                return True
+            else:
+                raise Exception('Failed while syncing logs for task %s' % task['ID'])
+        except:
+            logging.error('Failed while syncing logs for task %s' % task['ID'])
+            traceback.print_exc(file=sys.stderr)
+            return False
+
+    def update_task_state(self, task, state=None):
+        s = self.taskState[self.taskStateID] if state is None else state
+        try:
+            rst = self._PUT(path='task/' + str(task['ID']), data_dict={'worker': self.name,
+                                                                       'state': s})
+            if rst.code == HTTPStatus.OK and rst['result']:
+                return True
+            else:
+                raise Exception('Failed while updating state for task %s' % task['ID'])
+        except:
+            logging.error('Failed while updating state for task %s' % task['ID'])
+            traceback.print_exc(file=sys.stderr)
+            return False
+
+    def clean(self, task):
+        # Assign one task(-1)
+        try:
+            logging.debug('Trying to assign task %s...' % str(task['ID']))
+            rst = self._PUT(path='task/' + str(task['ID']) + '/assign', data_dict={'worker': self.name})
+            if rst.code != HTTPStatus.OK:
+                logging.error('Task assign result: %s' % rst)
+                raise Exception('Invalid task assign result')
+            elif rst['result']:
+                # Update task state(0)
+                if not self.update_task_state(task):
+                    return False
+            elif not rst['result']:
+                return False
+        except:
+            logging.error('Failed while assigning task %s' % task['ID'])
+            traceback.print_exc(file=sys.stderr)
+
+        # Broadcast start cleaning(0)
+        msg = "[INFO] Starting cleaning Node %s for task %s..." % (task['Node']['Name'], task['ID'])
+        self.sync_log_and_broadcast(task, msg)
+
+        # Check if supports the provider(0)
+        provider = task['Node']['Provider']
+        if provider not in self.supportedProviderList:
+            msg = "[ERROR] Unsupported provider %s for task %s, exiting..." % (provider, task['ID'])
+            self.sync_log_and_broadcast(task, msg)
+            self.taskStateID = 5
+            self.update_task_state(task)
+            return False
+
+        need_destroy_snapshot = False
+
+        # Get VPS info(0)
+        if not self.get_server_info[provider](task):
+            msg = "[ERROR] Failed while getting vps info for task %s, exiting..." % (task['ID'])
+            self.sync_log_and_broadcast(task, msg)
+            self.taskStateID = 5
+            self.update_task_state(task)
+            return False
+
+        # Set target snapshot ID, create temporary snapshot if needed(0)
         if task['Node']['Snapshot'] is None or task['Node']['Snapshot'] == '':
+            msg = "[INFO] Creating temporary snapshot for Node %s for task %s..." % (task['Node']['Name'], task['ID'])
+            self.sync_log_and_broadcast(task, msg)
             if not self.create_tmp_snapshot[provider](task):
+                msg = "[ERROR] Failed while creating temporary snapshot" \
+                      " for Node %s for task %s, exiting..." % (task['Node']['Name'], task['ID'])
+                self.sync_log_and_broadcast(task, msg)
+                self.taskStateID = 5
+                self.update_task_state(task)
                 return False
             need_destroy_snapshot = True
         else:
             self.tmpSnapshotID = task['Node']['Snapshot']
-        # Main clean loop
-        shiny = False
-        while not shiny:
-            # Destroy and Create VPS
+        # Main clean loop(0->1->2->3->1->2->3->...)
+        while True:
+            attempts = len(self.oldVPSList) + 1
+            msg = "[INFO] Cleaning attempt #%s for Node %s for task %s" % (attempts, task['Node']['Name'], task['ID'])
+            self.sync_log_and_broadcast(task, msg)
+
+            # Destroy and Create VPS(1->2)
             if not self.destroy_and_create[provider](task):
+                self.taskStateID = 5
+                self.update_task_state(task)
                 return False
-            # Call watcher
+
+            # Call watcher(3)
+            msg = "[INFO] Calling watcher to watch new %s Vultr VPS " \
+                  "for Node %s for task %s..." % (self.targetVPS['ram'], task['Node']['Name'], task['ID'])
+            self.sync_log_and_broadcast(task, msg)
+            self.taskStateID = 3
+            self.update_task_state(task)
             watcher_task_dict = {
                 'callback_id': 0,
                 'class': 'watcher',
@@ -98,17 +214,58 @@ class Cleaner(Worker):
                 'server_name': self.get_server_ip[provider]()['ipv4']
             }
             rst = self.assign_task_and_wait(task=task, new_task_dict=watcher_task_dict)
-            # Check watch task result
+
+            # Check watch task result()
             if isinstance(rst, bool) and not rst:
+                msg = "[ERROR] Failed while calling watcher to watch new %s Vultr VPS " \
+                      "for Node %s for task %s..." % (self.targetVPS['ram'], task['Node']['Name'], task['ID'])
+                self.sync_log_and_broadcast(task, msg)
+                self.taskStateID = 5
+                self.update_task_state(task)
                 return False
             if rst['State'] == 'Passing':
-                shiny = True
-        # Destroy temporary snapshot if needed
+                msg = "[INFO] Watcher returned %s, cleaning complete " \
+                      "for Node %s for task %s" % (rst['State'], task['Node']['Name'], task['ID'])
+                self.sync_log_and_broadcast(task, msg)
+                self.taskStateID = 4
+                self.update_task_state(task)
+                break
+            else:
+                msg = "[INFO] Watcher returned %s, retrying " \
+                      "for Node %s for task %s" % (rst['State'], task['Node']['Name'], task['ID'])
+                self.sync_log_and_broadcast(task, msg)
+
+        # Destroy temporary snapshot if needed(->6 if Failed)
         if need_destroy_snapshot:
+            msg = "[INFO] Destroying temporary snapshot for Node %s for " \
+                  "task %s..." % (task['Node']['Name'], task['ID'])
+            self.sync_log_and_broadcast(task, msg)
             if not self.destroy_tmp_snapshot[provider](task):
+                msg = "[ERROR] Failed while destroying temporary snapshot for Node %s for " \
+                      "task %s..." % (task['Node']['Name'], task['ID'])
+                self.sync_log_and_broadcast(task, msg)
+                self.taskStateID = 6
+                self.update_task_state(task)
                 return False
-        # Update task state and returun True
+            else:
+                msg = "[INFO] Successfully destroyed temporary snapshot for Node %s for " \
+                      "task %s" % (task['Node']['Name'], task['ID'])
+                self.sync_log_and_broadcast(task, msg)
+        msg = "[INFO] All works done for Node %s for " \
+              "task %s" % (task['Node']['Name'], task['ID'])
+        self.sync_log_and_broadcast(task, msg)
         return True
+
+    def heartbeat(self):
+        logging.debug("Sending heartbeat package...")
+        try:
+            rst = self._POST(path="status/worker/" + self.name, data_dict={'class': self.type})
+            if not (rst['code'] == HTTPStatus.OK and rst['result']):
+                logging.error('Heartbeat result: %s' % rst)
+                raise Exception('Invalid heartbeat result')
+        except:
+            logging.error('Failed while heartbeating')
+            traceback.print_exc(file=sys.stderr)
 
     def assign_task_and_wait(self, task, new_task_dict=None):
         # Assign new task
@@ -361,7 +518,7 @@ class Cleaner(Worker):
         return True
 
     def destroy_and_create_vultr(self, task):
-        # Check availability for 1024M Vultr VPS plan in given DataCenter
+        # Check availability for 1024M Vultr VPS plan in given DataCenter(0)
         rst = self.do_safely(method=self.vultr.regions.list,
                              description="getting regions availability list for node %s" % task['Node']['Name'],
                              args={
@@ -376,17 +533,49 @@ class Cleaner(Worker):
                 rst[task['Node']['DataCenter']]['availability']:
             logging.error(
                 "Even 1024M Vultr VPS is not available in DataCenter %s, returning..." % task['Node']['DataCenter'])
+            msg = "[ERROR] Even 1024M Vultr VPS is not available" \
+                  " in DataCenter %s, returning..." % task['Node']['DataCenter']
+            self.sync_log_and_broadcast(task, msg)
             return False
-        # Update old VPS list
+
+        # Update old VPS list and old IPv4 list(0)
         self.oldVPSList.append(self.targetVPS)
-        # Destroy useless VPS
+        self.oldIPv4List.append(self.get_server_ip['Vultr']()['ipv4'])
+        self.sync_log(task)
+
+        # Destroy useless VPS(1)
+        self.taskStateID = 1
+        self.update_task_state(task)
+        msg = "[INFO] Destroying old %s Vultr VPS for Node %s for " \
+              "task %s..." % (self.targetVPS['ram'], task['Node']['Name'], task['ID'])
+        self.sync_log_and_broadcast(task, msg)
         if self.targetVPS['VPSPLANID'] == self.VULTR512MPLANID:
             if not self.destroy_vultr(task, wait=True):
+                msg = "[ERROR] Failed while destroying old %s Vultr VPS for Node %s for " \
+                      "task %s, returning" % (self.targetVPS['ram'], task['Node']['Name'], task['ID'])
+                self.sync_log_and_broadcast(task, msg)
                 return False
         elif self.targetVPS['VPSPLANID'] == self.VULTR1024MPLANID:
             if not self.destroy_vultr(task, wait=False):
+                msg = "[ERROR] Failed while destroying old %s Vultr VPS for Node %s for " \
+                      "task %s, returning" % (self.targetVPS['ram'], task['Node']['Name'], task['ID'])
+                self.sync_log_and_broadcast(task, msg)
                 return False
-        # Create new VPS using temporary snapshot
+        msg = "[INFO] Successfully destroyed old %s Vultr VPS for Node %s for " \
+              "task %s" % (self.targetVPS['ram'], task['Node']['Name'], task['ID'])
+        self.sync_log_and_broadcast(task, msg)
+
+        # Create new VPS using snapshot(2)
+        self.taskStateID = 2
+        self.update_task_state(task)
+        msg = "[INFO] Creating new Vultr VPS for Node %s for task %s..." % (task['Node']['Name'], task['ID'])
+        self.sync_log_and_broadcast(task, msg)
         if not self.create_vultr(task):
+            msg = "[ERROR] Failed while creating new Vultr VPS for Node %s for " \
+                  "task %s, returning" % (task['Node']['Name'], task['ID'])
+            self.sync_log_and_broadcast(task, msg)
             return False
+        msg = "[INFO] Successfully created new %s Vultr VPS for Node %s for " \
+              "task %s" % (self.targetVPS['ram'], task['Node']['Name'], task['ID'])
+        self.sync_log_and_broadcast(task, msg)
         return True
