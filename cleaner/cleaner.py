@@ -8,7 +8,9 @@ import json
 import threading
 import requests
 import time
+import copy
 from vultr import Vultr
+from multiprocessing.dummy import Pool as ThreadPool
 
 sys.path.append("..")
 from worker import Worker
@@ -23,9 +25,16 @@ class Cleaner(Worker):
         self.tmpSnapshotID = ""
         self.targetVPS = None
         self.queryInterval = int(self.config.get('cleaner', 'queryInterval'))
-        self.createWaitTime = int(self.config.get('cleaner', 'createWaitTime'))
+        self.createMinTime = int(self.config.get('cleaner', 'createMinTime'))
         self.destroyWaitTime = int(self.config.get('cleaner', 'destroyWaitTime'))
+        self.timeZone = int(self.config.get('cleaner', 'timeZone'))
         self.oldVPSList = []
+        self.vultrDestroyCoolTime = int(self.config.get('cleaner', 'vultrDestroyCoolTime'))
+        self.destroyPool = ThreadPool(processes=self.maxThreads * 4)
+        self.destroyResults = []
+        self.VULTR512MPLANID = '200'
+        self.VULTR1024MPLANID = '201'
+        self.lastException = None
         # Init Vultr api instance
         self.vultrApikey = self.config.get('cleaner', 'vultrApikey')
         self.vultr = Vultr(self.vultrApikey)
@@ -33,11 +42,17 @@ class Cleaner(Worker):
         self.create_tmp_snapshot = {
             'Vultr': self.create_tmp_snapshot_vultr
         }
+        self.destroy_tmp_snapshot = {
+            'Vultr': self.destroy_tmp_snapshot_vultr
+        }
         self.get_server_info = {
             'Vultr': self.get_server_info_vultr
         }
         self.destroy_and_create = {
             'Vultr': self.destroy_and_create_vultr
+        }
+        self.get_server_ip = {
+            'Vultr': self.get_server_ip_vultr
         }
 
         # These kawaii variables↓ only works for Threads in Threads Pool
@@ -56,7 +71,44 @@ class Cleaner(Worker):
         return rst['data']
 
     def clean(self, task):
-        pass
+        provider = task['Node']['Provider']
+        need_destroy_snapshot = False
+        # Get VPS info
+        if not self.get_server_info[provider](task):
+            return False
+        # Set target snapshot ID, create temporary snapshot if needed
+        if task['Node']['Snapshot'] is None or task['Node']['Snapshot'] == '':
+            if not self.create_tmp_snapshot[provider](task):
+                return False
+            need_destroy_snapshot = True
+        else:
+            self.tmpSnapshotID = task['Node']['Snapshot']
+        # Main clean loop
+        shiny = False
+        while not shiny:
+            # Destroy and Create VPS
+            if not self.destroy_and_create[provider](task):
+                return False
+            # Call watcher
+            watcher_task_dict = {
+                'callback_id': 0,
+                'class': 'watcher',
+                'node_id': 0,
+                'ip_ver': 4,
+                'server_name': self.get_server_ip[provider]()['ipv4']
+            }
+            rst = self.assign_task_and_wait(task=task, new_task_dict=watcher_task_dict)
+            # Check watch task result
+            if isinstance(rst, bool) and not rst:
+                return False
+            if rst['State'] == 'Passing':
+                shiny = True
+        # Destroy temporary snapshot if needed
+        if need_destroy_snapshot:
+            if not self.destroy_tmp_snapshot[provider](task):
+                return False
+        # Update task state and returun True
+        return True
 
     def assign_task_and_wait(self, task, new_task_dict=None):
         # Assign new task
@@ -92,7 +144,7 @@ class Cleaner(Worker):
     def do_safely(self, method, description, args, depth=0):
         try:
             return method(**args)
-        except:
+        except Exception as e:
             traceback.print_exc(file=sys.stderr)
             if depth < self.maxTry:
                 logging.warning('Failed while %s after trying %d times, retrying...'
@@ -101,6 +153,7 @@ class Cleaner(Worker):
             else:
                 logging.error('Failed while %s after trying %d times, exiting...'
                               % (description, self.maxTry))
+                self.lastException = e
                 return False
 
     def get_server_info_vultr(self, task, subid=None):
@@ -126,6 +179,12 @@ class Cleaner(Worker):
             logging.debug("Server info for subid %s: %s" % (subid, servers))
             self.targetVPS = servers
             return True
+
+    def get_server_ip_vultr(self):
+        return {
+            'ipv4': self.targetVPS['main_ip'],
+            'ipv6': self.targetVPS['v6_networks'][0]['v6_main_ip']
+        }
 
     def create_tmp_snapshot_vultr(self, task):
         # Start create snapshot
@@ -158,16 +217,44 @@ class Cleaner(Worker):
         logging.debug("Successfully create snapshot for node %s" % task['Node']['Name'])
         return True
 
-    def destroy_and_create_vultr(self, task):
-        # Destroy useless VPS
-        logging.debug("Destroying %s Vultr VPS %s created at %s for node %s..." % (self.targetVPS['ram'],
-                                                                                   self.targetVPS['SUBID'],
-                                                                                   self.targetVPS['date_created'],
+    def destroy_tmp_snapshot_vultr(self, task):
+        # Start create snapshot
+        logging.debug("Starting destroying snapshot for node %s..." % task['Node']['Name'])
+        rst = self.do_safely(method=self.vultr.snapshot.destroy,
+                             description="destroying snapshot for node %s" % task['Node']['Name'],
+                             args={
+                                 'snapshotid': self.tmpSnapshotID
+                             })
+        if isinstance(rst, bool) and not rst:
+            return False
+        logging.debug("Successfully destroy snapshot for node %s" % task['Node']['Name'])
+        return True
+
+    def destroy_worker_vultr(self, task):
+        # Copy targetVPS to prevent chaos
+        targetVPS = copy.deepcopy(self.targetVPS)
+        # Calc sleep time
+        time_array = time.strptime(targetVPS['date_created'], '%Y-%m-%d %H:%M:%S')
+        create_time = int(time.mktime(time_array)) + self.timeZone * 3600
+        sleep_time = self.vultrDestroyCoolTime - (int(time.time()) - create_time)
+        logging.debug('sleep_time: %s, now_time: %s, create_time: %s' % (
+            sleep_time, int(time.time()), create_time))
+        if sleep_time > 0:
+            logging.debug("Cooling down %d seconds for destroying %s Vultr VPS %s created at %s for node %s..."
+                          % (sleep_time, targetVPS['ram'],
+                             targetVPS['SUBID'],
+                             targetVPS['date_created'],
+                             task['Node']['Name']))
+            time.sleep(sleep_time)
+        # Perform destroy
+        logging.debug("Destroying %s Vultr VPS %s created at %s for node %s..." % (targetVPS['ram'],
+                                                                                   targetVPS['SUBID'],
+                                                                                   targetVPS['date_created'],
                                                                                    task['Node']['Name']))
         rst = self.do_safely(method=self.vultr.server.destroy,
                              description="destroying vps for node %s" % task['Node']['Name'],
                              args={
-                                 'subid': self.targetVPS['SUBID'],
+                                 'subid': targetVPS['SUBID'],
                                  'params': {}
                              })
         if isinstance(rst, bool) and not rst:
@@ -182,45 +269,124 @@ class Cleaner(Worker):
             if isinstance(servers, bool) and not servers:
                 return False
             logging.debug("Server list: %s" % servers)
-            finish = self.targetVPS['SUBID'] not in servers
+            finish = targetVPS['SUBID'] not in servers
             time.sleep(self.queryInterval)
         logging.debug("Destroy complete for node %s" % (task['Node']['Name']))
         logging.debug("Waiting for %d seconds to prevent false positive..." % self.destroyWaitTime)
         time.sleep(self.destroyWaitTime)  # Wait for a while to prevent false positive
-        # Create new VPS using temporary snapshot
-        logging.debug("Creating %s Vultr VPS using snapshot %s for node %s..." % (self.targetVPS['ram'],
-                                                                                  self.tmpSnapshotID,
-                                                                                  task['Node']['Name']))
+        return True
+
+    def destroy_vultr(self, task, wait=False):
+        logging.debug("Starting destroying %s Vultr VPS %s created at %s for node %s..." % (self.targetVPS['ram'],
+                                                                                            self.targetVPS['SUBID'],
+                                                                                            self.targetVPS[
+                                                                                                'date_created'],
+                                                                                            task['Node']['Name']))
+        rst = self.destroyPool.apply_async(func=self.destroy_worker_vultr, args=(task,))
+        self.destroyResults.append(rst)
+        if wait:
+            logging.debug("Waiting for destroying worker return for node %s..." % (task['Node']['Name']))
+            rst.wait()
+            return rst.successful() and rst.get()
+        logging.debug("Wait = False, returning...")
+        return True
+
+    def create_vultr(self, task):
+        if task['Node']['Plan'] == self.VULTR512MPLANID:
+            logging.debug("Creating 512M Vultr VPS using snapshot %s for node %s..." % (self.tmpSnapshotID,
+                                                                                        task['Node']['Name']))
+        elif task['Node']['Plan'] == self.VULTR1024MPLANID:
+            logging.debug("Creating 1024M Vultr VPS using snapshot %s for node %s..." % (self.tmpSnapshotID,
+                                                                                         task['Node']['Name']))
         rst = self.do_safely(method=self.vultr.server.create,
                              description="creating vps for node %s" % task['Node']['Name'],
                              args={
-                                 'dcid': self.targetVPS['DCID'],
-                                 'vpsplanid': self.targetVPS['VPSPLANID'],
+                                 'dcid': task['Node']['DataCenter'],
+                                 'vpsplanid': task['Node']['Plan'],
                                  'osid': 164,
                                  'params': {
                                      'SNAPSHOTID': self.tmpSnapshotID,
                                      'enable_ipv6': 'yes',
-                                     'label': task['Node']['Name']
+                                     'label': task['Node']['Name'] + '-' + str(int(time.time()))
+                                 }
+                             })
+        fall_back = False
+        new_vps_id = ''
+        if isinstance(rst, bool) and not rst:
+            err = self.lastException
+            if 'plan' in str(err) and 'unavailable' in str(err):
+                logging.warning("Vultr VPS create failed! Falling back to create 1024M" +
+                                " for node %s..." % task['Node']['Name'])
+                fall_back = True
+            else:
+                logging.warning("Vultr VPS create failed due to unknown error, returning...")
+                return False
+        else:
+            new_vps_id = rst['SUBID']
+        if fall_back:
+            rst = self.do_safely(method=self.vultr.server.create,
+                                 description="creating vps for node %s" % task['Node']['Name'],
+                                 args={
+                                     'dcid': task['Node']['DataCenter'],
+                                     'vpsplanid': self.VULTR1024MPLANID,
+                                     'osid': 164,
+                                     'params': {
+                                         'SNAPSHOTID': self.tmpSnapshotID,
+                                         'enable_ipv6': 'yes',
+                                         'label': task['Node']['Name'] + str(int(time.time()))
+                                     }
+                                 })
+            if isinstance(rst, bool) and not rst:
+                return False
+            new_vps_id = rst['SUBID']
+        # Clear target VPS
+        self.targetVPS = None
+        logging.debug("New VPS ID is %s" % new_vps_id)
+        # Wait for creating and update target VPS info
+        logging.debug("Waiting for creating complete for node %s..." % (task['Node']['Name']))
+        finish = False
+        while not finish:
+            if not self.get_server_info_vultr(task=task, subid=new_vps_id):
+                return False
+            logging.debug("Server info: %s" % self.targetVPS)
+            time_array = time.strptime(self.targetVPS['date_created'], '%Y-%m-%d %H:%M:%S')
+            create_time = int(time.mktime(time_array)) + self.timeZone * 3600
+            lifespan = int(time.time()) - create_time
+            logging.debug('Lifespan of the new server: %s' % lifespan)
+            finish = lifespan > self.createMinTime and \
+                     self.targetVPS['status'] == 'active' and self.targetVPS['power_status'] == 'running' and \
+                     self.targetVPS['server_state'] == 'ok'
+            time.sleep(self.queryInterval)
+        logging.debug("Successfully create new VPS for node %s" % task['Node']['Name'])
+        return True
+
+    def destroy_and_create_vultr(self, task):
+        # Check availability for 1024M Vultr VPS plan in given DataCenter
+        rst = self.do_safely(method=self.vultr.regions.list,
+                             description="getting regions availability list for node %s" % task['Node']['Name'],
+                             args={
+                                 'params': {
+                                     'availability': 'yes'
                                  }
                              })
         if isinstance(rst, bool) and not rst:
             return False
-        # Update old VPS list and target VPS
+        logging.debug("Regions availability: %s" % rst)
+        if task['Node']['DataCenter'] not in rst or int(self.VULTR1024MPLANID) not in \
+                rst[task['Node']['DataCenter']]['availability']:
+            logging.error(
+                "Even 1024M Vultr VPS is not available in DataCenter %s, returning..." % task['Node']['DataCenter'])
+            return False
+        # Update old VPS list
         self.oldVPSList.append(self.targetVPS)
-        self.targetVPS = None
-        new_id = rst['SUBID']
-        logging.debug("New VPS ID is %s" % new_id)
-        # Wait for creating
-        logging.debug("Waiting for %d seconds to prevent false positive..." % self.createWaitTime)
-        time.sleep(self.createWaitTime)  # Wait for a while to prevent false positive
-        logging.debug("Waiting for creating complete for node %s..." % (task['Node']['Name']))
-        finish = False
-        while not finish:
-            if not self.get_server_info_vultr(task=task, subid=new_id):
+        # Destroy useless VPS
+        if self.targetVPS['VPSPLANID'] == self.VULTR512MPLANID:
+            if not self.destroy_vultr(task, wait=True):
                 return False
-            logging.debug("Server info: %s" % self.targetVPS)
-            finish = self.targetVPS['status'] == 'active' and self.targetVPS['power_status'] == 'running' and \
-                     self.targetVPS['server_state'] == 'ok'
-            time.sleep(self.queryInterval)
-        logging.debug("Successfully create new VPS for node %s" % task['Node']['Name'])
+        elif self.targetVPS['VPSPLANID'] == self.VULTR1024MPLANID:
+            if not self.destroy_vultr(task, wait=False):
+                return False
+        # Create new VPS using temporary snapshot
+        if not self.create_vultr(task):
+            return False
         return True
