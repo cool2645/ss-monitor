@@ -14,6 +14,7 @@ import (
 var subscribedChats []int64
 var mux sync.RWMutex
 var ch = make(chan string)
+var ManagerChan = make(chan bool)
 
 func ServeTelegram(db *gorm.DB, apiKey string) {
 	log.Infof("Reading subscribed chats from database %s", time.Now())
@@ -43,6 +44,8 @@ func ServeTelegram(db *gorm.DB, apiKey string) {
 				replyMessage(start(db, m), bot, m)
 			case "stop":
 				replyMessage(stop(db, m), bot, m)
+			case "ping":
+				ManagerChan <- true
 			}
 		}
 	}
@@ -91,8 +94,9 @@ func stop(db *gorm.DB, m *tg.Message) string {
 }
 
 func replyMessage(text string, bot *tg.BotAPI, req *tg.Message) {
-	msg := tg.NewMessage(req.Chat.ID, text)
-	msg.ReplyToMessageID = req.MessageID
+	textf := fmt.Sprintf("%s\n_By %s_", text, "broadcaster")
+	msg := tg.NewMessage(req.Chat.ID, textf)
+	msg.ParseMode = "Markdown"
 	bot.Send(msg)
 }
 

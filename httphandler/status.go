@@ -52,7 +52,7 @@ func HandleHeartbeat(w http.ResponseWriter, req *http.Request, ps httprouter.Par
 }
 
 func GetWorkerStatus(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	workers := manager.ReportWorkerStatus()
+	workers := manager.GetWorkerStatus()
 	res := map[string]interface{}{
 		"code":   http.StatusOK,
 		"result": true,

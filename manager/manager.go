@@ -51,6 +51,7 @@ func Init() {
 		workers["cleaner"][v.Name] = v
 	}
 	go monitorWorkers()
+	go ReportWorkerStatus(broadcaster.ManagerChan)
 }
 
 func monitorWorkers() {
@@ -60,8 +61,28 @@ func monitorWorkers() {
 	}
 }
 
-func ReportWorkerStatus() (map[string]map[string]model.Heartbeat) {
+func GetWorkerStatus() (map[string]map[string]model.Heartbeat) {
 	return workers
+}
+
+func ReportWorkerStatus(ch chan bool) {
+	for {
+		if <-ch {
+			var msg string
+			workers := workers
+			for wck, ws := range workers {
+				if len(ws) == 0 {
+					msg += fmt.Sprintf("*🔴 %d %s%s currently online*\n", len(ws), wck, singleOrPlural(len(ws)))
+				} else {
+					msg += fmt.Sprintf("*🔵 %d %s%s currently online*\n", len(ws), wck, singleOrPlural(len(ws)))
+				}
+				for _, v := range ws {
+					msg += fmt.Sprintf("  🔵   %s: Last heartbeat at %s\n", v.Name, time.Unix(v.Time, 0).Format("15:04"))
+				}
+			}
+			broadcaster.Broadcast(msg, GlobCfg.MANAGER_NAME, "manager")
+		}
+	}
 }
 
 func UpdateWorkerStatus(class string, ipVer uint, name string) (heartbeat model.Heartbeat, err error) {
@@ -136,7 +157,7 @@ func alert(offlineWorkers []model.Heartbeat, onlineWorkers map[string]model.Hear
 		msg += fmt.Sprintf("*🔴 %d %s%s get offline*\n", len(offlineWorkers), wck, singleOrPlural(len(offlineWorkers)))
 	}
 	for _, v := range offlineWorkers {
-		msg += fmt.Sprintf("  🔴 %s: Last heartbeat at %s\n", v.Name, time.Unix(v.Time, 0).Format("15:04"))
+		msg += fmt.Sprintf("  🔴   %s: Last heartbeat at %s\n", v.Name, time.Unix(v.Time, 0).Format("15:04"))
 	}
 	if len(onlineWorkers) == 0 {
 		msg += fmt.Sprintf("*🔴 %d %s%s currently online*\n", len(onlineWorkers), wck, singleOrPlural(len(onlineWorkers)))
@@ -144,7 +165,7 @@ func alert(offlineWorkers []model.Heartbeat, onlineWorkers map[string]model.Hear
 		msg += fmt.Sprintf("*🔵 %d %s%s currently online*\n", len(onlineWorkers), wck, singleOrPlural(len(onlineWorkers)))
 	}
 	for _, v := range onlineWorkers {
-		msg += fmt.Sprintf("  🔵 %s: Last heartbeat at %s\n", v.Name, time.Unix(v.Time, 0).Format("15:04"))
+		msg += fmt.Sprintf("  🔵   %s: Last heartbeat at %s\n", v.Name, time.Unix(v.Time, 0).Format("15:04"))
 	}
 	broadcaster.Broadcast(msg, GlobCfg.MANAGER_NAME, "manager")
 }
