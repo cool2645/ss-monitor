@@ -18,3 +18,13 @@ db_charset = "utf8"
 [[admin]]
 username = "root"
 password = "root"
+
+[friendly]
+worker = "员工"
+watcher = "观察者"
+tester = "测试员"
+ipv4tester = "IPv4测试员"
+ipv6tester = "IPv6测试员"
+cleaner = "清洁工"
+manager = "经理"
+broadcaster = "广播姬"

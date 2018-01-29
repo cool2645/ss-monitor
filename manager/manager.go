@@ -65,23 +65,22 @@ func GetWorkerStatus() (map[string]map[string]model.Heartbeat) {
 	return workers
 }
 
-func ReportWorkerStatus(ch chan bool) {
+func ReportWorkerStatus(ch chan int64) {
 	for {
-		if <-ch {
-			var msg string
-			workers := workers
-			for wck, ws := range workers {
-				if len(ws) == 0 {
-					msg += fmt.Sprintf("*🔴 %d %s%s currently online*\n", len(ws), wck, singleOrPlural(len(ws)))
-				} else {
-					msg += fmt.Sprintf("*🔵 %d %s%s currently online*\n", len(ws), wck, singleOrPlural(len(ws)))
-				}
-				for _, v := range ws {
-					msg += fmt.Sprintf("  🔵   %s: Last heartbeat at %s\n", v.Name, time.Unix(v.Time, 0).Format("15:04"))
-				}
+		reqChatID := <-ch
+		var msg string
+		workers := workers
+		for wck, ws := range workers {
+			if len(ws) == 0 {
+				msg += fmt.Sprintf("*🔴 %d %s%s currently online*\n", len(ws), wck, singleOrPlural(len(ws)))
+			} else {
+				msg += fmt.Sprintf("*🔵 %d %s%s currently online*\n", len(ws), wck, singleOrPlural(len(ws)))
 			}
-			broadcaster.Broadcast(msg, GlobCfg.MANAGER_NAME, "manager")
+			for _, v := range ws {
+				msg += fmt.Sprintf("    🔵 %s: Last heartbeat at %s\n", v.Name, time.Unix(v.Time, 0).Format("15:04"))
+			}
 		}
+		broadcaster.ReplyMessage(msg, GlobCfg.MANAGER_NAME, "manager", reqChatID)
 	}
 }
 
@@ -151,13 +150,22 @@ func singleOrPlural(cnt int) (string) {
 	}
 }
 
+func rootOrSingular(cnt int) (string) {
+	if cnt > 1 {
+		return ""
+	} else {
+		return "s"
+	}
+}
+
 func alert(offlineWorkers []model.Heartbeat, onlineWorkers map[string]model.Heartbeat, wck string) {
 	var msg string
 	if len(offlineWorkers) > 0 {
-		msg += fmt.Sprintf("*🔴 %d %s%s get offline*\n", len(offlineWorkers), wck, singleOrPlural(len(offlineWorkers)))
+		msg += fmt.Sprintf("*🔴 %d %s%s get%s offline*\n", len(offlineWorkers), wck,
+			singleOrPlural(len(offlineWorkers)), rootOrSingular(len(offlineWorkers)))
 	}
 	for _, v := range offlineWorkers {
-		msg += fmt.Sprintf("  🔴   %s: Last heartbeat at %s\n", v.Name, time.Unix(v.Time, 0).Format("15:04"))
+		msg += fmt.Sprintf("    🔴 %s: Last heartbeat at %s\n", v.Name, time.Unix(v.Time, 0).Format("15:04"))
 	}
 	if len(onlineWorkers) == 0 {
 		msg += fmt.Sprintf("*🔴 %d %s%s currently online*\n", len(onlineWorkers), wck, singleOrPlural(len(onlineWorkers)))
@@ -165,7 +173,7 @@ func alert(offlineWorkers []model.Heartbeat, onlineWorkers map[string]model.Hear
 		msg += fmt.Sprintf("*🔵 %d %s%s currently online*\n", len(onlineWorkers), wck, singleOrPlural(len(onlineWorkers)))
 	}
 	for _, v := range onlineWorkers {
-		msg += fmt.Sprintf("  🔵   %s: Last heartbeat at %s\n", v.Name, time.Unix(v.Time, 0).Format("15:04"))
+		msg += fmt.Sprintf("    🔵 %s: Last heartbeat at %s\n", v.Name, time.Unix(v.Time, 0).Format("15:04"))
 	}
 	broadcaster.Broadcast(msg, GlobCfg.MANAGER_NAME, "manager")
 }
