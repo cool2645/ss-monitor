@@ -13,7 +13,8 @@ manager_name = "NyaM"
 db_name = "ssmonitor"
 db_user = "root"
 db_pass = ""
-db_charset = "utf8"
+db_charset = "utf8mb4,utf8"
+db_collation = "utf8mb4_unicode_ci"
 
 [[admin]]
 username = "root"

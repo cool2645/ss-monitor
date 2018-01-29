@@ -36,8 +36,8 @@ func main() {
 	db.AutoMigrate(&model.Subscriber{}, &model.Heartbeat{}, &model.Node{}, &model.Task{})
 	model.Db = db
 
-	manager.Init()
 	go broadcaster.ServeTelegram(model.Db, GlobCfg.TG_KEY)
+	manager.Init()
 
 	httphandler.InitSession()
 

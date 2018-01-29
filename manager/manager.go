@@ -51,7 +51,7 @@ func Init() {
 		workers["cleaner"][v.Name] = v
 	}
 	go monitorWorkers()
-	go ReportWorkerStatus(broadcaster.ManagerChan)
+	go reportWorkerStatus(broadcaster.ManagerChan)
 }
 
 func monitorWorkers() {
@@ -65,7 +65,7 @@ func GetWorkerStatus() (map[string]map[string]model.Heartbeat) {
 	return workers
 }
 
-func ReportWorkerStatus(ch chan int64) {
+func reportWorkerStatus(ch chan int64) {
 	for {
 		reqChatID := <-ch
 		var msg string

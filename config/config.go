@@ -14,6 +14,7 @@ type Config struct {
 	DB_USER          string            `toml:"db_user"`
 	DB_PASS          string            `toml:"db_pass"`
 	DB_CHARSET       string            `toml:"db_charset"`
+	DB_COLLATION     string            `toml:"db_collation"`
 	ADMIN            []Admin           `toml:"admin"`
 	FRIENDLY_NAME    map[string]string `toml:"friendly"`
 }
@@ -24,5 +25,5 @@ type Admin struct {
 }
 
 func ParseDSN(config Config) string {
-	return config.DB_USER + ":" + config.DB_PASS + "@/" + config.DB_NAME + "?charset=" + config.DB_CHARSET + "&parseTime=true"
+	return config.DB_USER + ":" + config.DB_PASS + "@/" + config.DB_NAME + "?charset=" + config.DB_CHARSET + "&collation=" + config.DB_COLLATION + "&parseTime=true"
 }

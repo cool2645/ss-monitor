@@ -16,14 +16,17 @@ type Node struct {
 	Ss6Json           string
 	DomainPrefix4     string
 	DomainPrefix6     string
+	DomainRoot        string
 	Provider          string
 	DNSProvider       string
-	DomainRoot        string
 	IsCleaning        bool
 	EnableWatching    bool
 	EnableIPv4Testing bool
 	EnableIPv6Testing bool
 	EnableCleaning    bool
+	Snapshot          string
+	DataCenter        string
+	Plan              string
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }
@@ -88,7 +91,7 @@ func UpdateNodeSetEnable(db *gorm.DB, id uint, task string) (err error) {
 	case "ipv6testing":
 		node.EnableIPv6Testing = true
 	case "cleaning":
-		node.EnableCleaning	= true
+		node.EnableCleaning = true
 	default:
 		err = errors.New("Unknown task type")
 		err = errors.Wrap(err, "UpdateNodeSetEnable")
@@ -154,7 +157,7 @@ func ResetNode(db *gorm.DB, id uint) (err error) {
 	return
 }
 
-func SetNodeCleaning(db *gorm.DB, id uint) (err error)  {
+func SetNodeCleaning(db *gorm.DB, id uint) (err error) {
 	var node Node
 	err = db.Where("id = ?", id).Find(&node).Error
 	if err != nil {
