@@ -51,7 +51,7 @@ func ServeTelegram(db *gorm.DB, apiKey string) {
 func pushMessage(bot *tg.BotAPI, c chan string) {
 	var m string
 	for {
-		m = <- c
+		m = <-c
 		mux.RLock()
 		for _, v := range subscribedChats {
 			msg := tg.NewMessage(v, m)
@@ -97,7 +97,12 @@ func replyMessage(text string, bot *tg.BotAPI, req *tg.Message) {
 }
 
 func Broadcast(msg string, worker string, class string) {
-	msgf := fmt.Sprintf("%s\n_By %s(%s)_", msg, worker, class)
+	var msgf string
+	if msg[len(msg)-1] != '\n' {
+		msgf = fmt.Sprintf("%s\n_By %s(%s)_", msg, worker, class)
+	} else {
+		msgf = fmt.Sprintf("%s_By %s(%s)_", msg, worker, class)
+	}
 	ch <- msgf
 	return
 }

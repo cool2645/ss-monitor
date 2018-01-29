@@ -81,13 +81,13 @@ func UpdateWorkerStatus(class string, ipVer uint, name string) (heartbeat model.
 	}
 	t := time.Now().Unix()
 	var worker model.Heartbeat
-	isNewWorker := false
+	var newWorkerWCK []string
 	for _, wck := range workerClassKey {
 		if val, ok := workers[wck][name]; ok {
 			worker = val
 		} else {
 			worker.Name = name
-			isNewWorker = true
+			newWorkerWCK = append(newWorkerWCK, wck)
 		}
 		worker.Class = class
 		worker.IPVer = ipVer
@@ -99,8 +99,8 @@ func UpdateWorkerStatus(class string, ipVer uint, name string) (heartbeat model.
 		err = errors.Wrap(err, "UpdateWorkerStatus")
 		return
 	}
-	if isNewWorker {
-
+	for _, wck := range newWorkerWCK {
+		alert(make([]model.Heartbeat, 0), workers[wck], wck)
 	}
 	return
 }
@@ -116,14 +116,14 @@ func checkWorkerStatus() {
 				delete(workers[i], k)
 			}
 		}
-		if len(offlineList) != 0 || len(workers[i]) == 0 {
+		if len(offlineList) != 0 {
 			alert(offlineList, workers[i], i)
 		}
 	}
 }
 
 func singleOrPlural(cnt int) (string) {
-	if cnt > 0 {
+	if cnt > 1 {
 		return "s"
 	} else {
 		return ""
