@@ -16,6 +16,7 @@ var subscribedChats = make(map[int64]int64)
 var mux sync.RWMutex
 var ch = make(chan string)
 var ManagerChan = make(chan int64)
+var ManagerNodeChan = make(chan int64)
 var bot *tg.BotAPI
 
 func ServeTelegram(db *gorm.DB, apiKey string) {
@@ -50,6 +51,8 @@ func ServeTelegram(db *gorm.DB, apiKey string) {
 				ReplyMessage(stop(db, m), "", "broadcaster", m.Chat.ID)
 			case "ping":
 				ManagerChan <- m.Chat.ID
+			case "status":
+				ManagerNodeChan <- m.Chat.ID
 			}
 		}
 	}
@@ -107,7 +110,7 @@ func formatMessage(msg string, worker string, class string) (msgf string) {
 		}
 		return
 	}
-	if msg[len(msg)-1] != '\n' {
+	if len(msg) > 0 && msg[len(msg)-1] != '\n' {
 		if v, ok := GlobCfg.FRIENDLY_NAME[class]; ok {
 			msgf = fmt.Sprintf("%s\n_By %s(%s)_", msg, worker, v)
 		} else {

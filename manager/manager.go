@@ -52,6 +52,8 @@ func Init() {
 	}
 	go monitorWorkers()
 	go reportWorkerStatus(broadcaster.ManagerChan)
+	InitNodes()
+	go reportNodeStatus(broadcaster.ManagerNodeChan)
 }
 
 func monitorWorkers() {

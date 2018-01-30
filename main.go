@@ -45,7 +45,7 @@ func main() {
 
 	mux.GET("/api/status", httphandler.Pong)
 	mux.GET("/api/status/worker", httphandler.GetWorkerStatus)
-	mux.GET("/api/status/node", httphandler.Pong)
+	mux.GET("/api/status/node", httphandler.GetNodeStatus)
 	mux.POST("/api/status/worker/:name", httphandler.HandleHeartbeat)
 
 	mux.GET("/api/task", httphandler.GetTasks)
@@ -56,7 +56,7 @@ func main() {
 	mux.PUT("/api/task/:id/assign", httphandler.AssignTask)
 	mux.PUT("/api/task/:id", httphandler.SyncTaskStatus)
 	mux.DELETE("/api/task/:id", httphandler.ResetTask)
-	mux.POST("/api/task/:id/callback", httphandler.Pong)
+	mux.POST("/api/task/:id/callback", httphandler.TaskCallback)
 
 	mux.POST("/api/broadcast", httphandler.Broadcast)
 
