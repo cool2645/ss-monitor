@@ -9,10 +9,10 @@ import logging
 
 def test():
     test_task = {
-        'ID': 6,
+        'ID': 1,
         'Node': {
             'Name': 'Fake-US3',
-            'IPv4': '207.148.22.6',
+            'IPv4': '207.148.19.134',
             'IPv6': '',
             'DataCenter': '1',
             'Plan': '200',
@@ -22,7 +22,7 @@ def test():
     }
     c = Cleaner()
 
-    # print(c.broadcast('我可以讲中文　僕の日本語は本当に苦手です'))
+    # print(c.broadcast('🔶🔵🔴 做女孩子吧！'))
 
     print(c.clean(test_task))
 

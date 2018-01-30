@@ -20,6 +20,9 @@ def main():
     try:
         while True:
             time.sleep(1)
+            if not th.is_alive():
+                logging.critical("Main loop thread is dead, exiting")
+                return
     except KeyboardInterrupt:
         logging.warning("Interrupt signal received, exiting")
         loop = False
