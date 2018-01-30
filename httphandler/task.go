@@ -6,6 +6,7 @@ import (
 	"strconv"
 	logging "github.com/yanzay/log"
 	"github.com/cool2645/ss-monitor/model"
+	"github.com/cool2645/ss-monitor/manager"
 )
 
 func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
@@ -13,7 +14,6 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	class := "%"
 	state := "%"
 	ipVer := "%"
-	callbackID := "%"
 	order := "asc"
 	var page uint = 1
 	if len(req.Form["class"]) == 1 {
@@ -25,9 +25,6 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if len(req.Form["ip_ver"]) == 1 {
 		ipVer = req.Form["ip_ver"][0]
 	}
-	if len(req.Form["callback_id"]) == 1 {
-		callbackID = req.Form["callback_id"][0]
-	}
 	if len(req.Form["order"]) == 1 {
 		order = req.Form["order"][0]
 	}
@@ -38,7 +35,7 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		}
 		page = uint(page64)
 	}
-	tasks, err := model.GetTasks(model.Db, class, state, ipVer, callbackID, order, page)
+	tasks, err := model.GetTasks(model.Db, class, state, ipVer, order, page)
 	if err != nil {
 		logging.Error(err)
 		res := map[string]interface{}{
@@ -410,6 +407,70 @@ func ResetTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			"code":   http.StatusInternalServerError,
 			"result": false,
 			"msg":    "Error occurred resetting task: " + err.Error(),
+		}
+		responseJson(w, res, http.StatusInternalServerError)
+		return
+	}
+	res := map[string]interface{}{
+		"code":   http.StatusOK,
+		"result": true,
+		"msg":    "success",
+	}
+	responseJson(w, res, http.StatusOK)
+}
+
+func TaskCallback(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	if !authAccessKey(w, req) {
+		return
+	}
+	req.ParseForm()
+	if len(req.Form["worker"]) != 1 {
+		res := map[string]interface{}{
+			"code":   http.StatusBadRequest,
+			"result": false,
+			"msg":    "Invalid worker name.",
+		}
+		responseJson(w, res, http.StatusBadRequest)
+		return
+	}
+	worker := req.Form["worker"][0]
+	taskID64, err := strconv.ParseUint(ps.ByName("id"), 10, 32)
+	if err != nil {
+		logging.Error(err)
+		res := map[string]interface{}{
+			"code":   http.StatusBadRequest,
+			"result": false,
+			"msg":    "Error occurred parsing task id.",
+		}
+		responseJson(w, res, http.StatusBadRequest)
+		return
+	}
+	taskID := uint(taskID64)
+	err = manager.TaskCallback(taskID, worker)
+	if err != nil {
+		logging.Error(err)
+		if err.Error() == "TaskCallback: record not found" {
+			res := map[string]interface{}{
+				"code":   http.StatusNotFound,
+				"result": false,
+				"msg":    "Error occurred on task callback: " + err.Error(),
+			}
+			responseJson(w, res, http.StatusNotFound)
+			return
+		}
+		if err.Error() == "TaskCallback: Not assigned worker" {
+			res := map[string]interface{}{
+				"code":   http.StatusUnauthorized,
+				"result": false,
+				"msg":    "Error occurred on task callback: " + err.Error(),
+			}
+			responseJson(w, res, http.StatusUnauthorized)
+			return
+		}
+		res := map[string]interface{}{
+			"code":   http.StatusInternalServerError,
+			"result": false,
+			"msg":    "Error occurred on task callback: " + err.Error(),
 		}
 		responseJson(w, res, http.StatusInternalServerError)
 		return

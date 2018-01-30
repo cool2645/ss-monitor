@@ -6,6 +6,7 @@ import (
 	"github.com/cool2645/ss-monitor/model"
 	"github.com/yanzay/log"
 	"strconv"
+	"github.com/cool2645/ss-monitor/manager"
 )
 
 func NewNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
@@ -55,6 +56,15 @@ func NewNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if len(req.Form["dns_provider"]) == 1 {
 		node.DNSProvider = req.Form["dns_provider"][0]
 	}
+	if len(req.Form["snapshot"]) == 1 {
+		node.Snapshot = req.Form["snapshot"][0]
+	}
+	if len(req.Form["data_center"]) == 1 {
+		node.DataCenter = req.Form["data_center"][0]
+	}
+	if len(req.Form["plan"]) == 1 {
+		node.Plan = req.Form["plan"][0]
+	}
 	node, err := model.CreateNode(model.Db, node)
 	if err != nil {
 		log.Error(err)
@@ -72,9 +82,10 @@ func NewNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		"data":   node,
 	}
 	responseJson(w, res, http.StatusOK)
+	manager.InitNodes()
 }
 
-func EditNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params)  {
+func EditNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if !auth(w, req) {
 		return
 	}
@@ -126,6 +137,15 @@ func EditNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params)  {
 	if len(req.Form["dns_provider"]) == 1 {
 		node.DNSProvider = req.Form["dns_provider"][0]
 	}
+	if len(req.Form["snapshot"]) == 1 {
+		node.Snapshot = req.Form["snapshot"][0]
+	}
+	if len(req.Form["data_center"]) == 1 {
+		node.DataCenter = req.Form["data_center"][0]
+	}
+	if len(req.Form["plan"]) == 1 {
+		node.Plan = req.Form["plan"][0]
+	}
 	node, err = model.UpdateNode(model.Db, node)
 	if err != nil {
 		log.Error(err)
@@ -152,9 +172,10 @@ func EditNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params)  {
 		"data":   node,
 	}
 	responseJson(w, res, http.StatusOK)
+	manager.InitNodes()
 }
 
-func SetNodeTaskEnable(w http.ResponseWriter, req *http.Request, ps httprouter.Params)  {
+func SetNodeTaskEnable(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if !authAdmin(w, req) {
 		return
 	}
@@ -207,9 +228,10 @@ func SetNodeTaskEnable(w http.ResponseWriter, req *http.Request, ps httprouter.P
 		"msg":    "success",
 	}
 	responseJson(w, res, http.StatusOK)
+	manager.InitNodes()
 }
 
-func SetNodeTaskDisable(w http.ResponseWriter, req *http.Request, ps httprouter.Params)  {
+func SetNodeTaskDisable(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if !authAdmin(w, req) {
 		return
 	}
@@ -262,6 +284,7 @@ func SetNodeTaskDisable(w http.ResponseWriter, req *http.Request, ps httprouter.
 		"msg":    "success",
 	}
 	responseJson(w, res, http.StatusOK)
+	manager.InitNodes()
 }
 
 func ResetNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
@@ -306,6 +329,7 @@ func ResetNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		"msg":    "success",
 	}
 	responseJson(w, res, http.StatusOK)
+	manager.InitNodes()
 }
 
 func DeleteNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
@@ -350,6 +374,7 @@ func DeleteNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 		"msg":    "success",
 	}
 	responseJson(w, res, http.StatusOK)
+	manager.InitNodes()
 }
 
 func GetNodes(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {

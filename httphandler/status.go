@@ -60,3 +60,13 @@ func GetWorkerStatus(w http.ResponseWriter, req *http.Request, ps httprouter.Par
 	}
 	responseJson(w, res, http.StatusOK)
 }
+
+func GetNodeStatus(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	nodes := manager.GetNodeStatus()
+	res := map[string]interface{}{
+		"code":   http.StatusOK,
+		"result": true,
+		"data":   nodes,
+	}
+	responseJson(w, res, http.StatusOK)
+}
