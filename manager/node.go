@@ -103,21 +103,26 @@ func TaskCallback(taskID uint, worker string) (err error) {
 		err = errors.Wrap(err, "TaskCallback")
 	}
 	// Update node status
-	switch task.Class {
-	case "watcher":
-		nodes[task.NodeID].Status["CN"] = task
-	case "tester":
-		if task.IPVer == 6 {
-			nodes[task.NodeID].Status["SS-IPv6"] = task
-		} else {
-			nodes[task.NodeID].Status["SS"] = task
+	if _, ok := nodes[task.NodeID]; ok {
+		switch task.Class {
+		case "watcher":
+			nodes[task.NodeID].Status["CN"] = task
+		case "tester":
+			if task.IPVer == 6 {
+				nodes[task.NodeID].Status["SS-IPv6"] = task
+			} else {
+				nodes[task.NodeID].Status["SS"] = task
+			}
 		}
 	}
 	// Generate Report
+	if task.CallbackID == 0 {
+		return
+	}
 	brotherTasks, err := model.GetTasksByCallbackID(model.Db, task.CallbackID)
 	if err != nil {
 		log.Error(err)
-		msg := fmt.Sprintf("❗️ Error occured when task #%d callback with callback id #%d: %s", task.ID, task.CallbackID, err.Error())
+		msg := fmt.Sprintf("❗️ Error occured when task #%d callback with callback id #%d: %s\n", task.ID, task.CallbackID, err.Error())
 		broadcaster.Broadcast(msg, GlobCfg.MANAGER_NAME, "manager")
 		return
 	}
@@ -148,24 +153,24 @@ func TaskCallback(taskID uint, worker string) (err error) {
 			for _, v := range failedTasks {
 				switch v.Class {
 				case "watcher":
-					msg += fmt.Sprintf("    🔴 task #%d Watch %s: %s", v.ID, v.Node.Name, v.State)
+					msg += fmt.Sprintf("    🔴 task #%d Watch %s: %s\n", v.ID, v.Node.Name, v.State)
 				case "tester":
 					if v.IPVer == 6 {
-						msg += fmt.Sprintf("    🔴 task #%d Test %s with IPv6: %s", v.ID, v.Node.Name, v.State)
+						msg += fmt.Sprintf("    🔴 task #%d Test %s with IPv6: %s\n", v.ID, v.Node.Name, v.State)
 					} else {
-						msg += fmt.Sprintf("    🔴 task #%d Test %s: %s", v.ID, v.Node.Name, v.State)
+						msg += fmt.Sprintf("    🔴 task #%d Test %s: %s\n", v.ID, v.Node.Name, v.State)
 					}
 				}
 			}
 			for _, v := range passedTasks {
 				switch v.Class {
 				case "watcher":
-					msg += fmt.Sprintf("    🔵 task #%d Watch %s: %s", v.ID, v.Node.Name, v.State)
+					msg += fmt.Sprintf("    🔵 task #%d Watch %s: %s\n", v.ID, v.Node.Name, v.State)
 				case "tester":
 					if v.IPVer == 6 {
-						msg += fmt.Sprintf("    🔵 task #%d Test %s with IPv6: %s", v.ID, v.Node.Name, v.State)
+						msg += fmt.Sprintf("    🔵 task #%d Test %s with IPv6: %s\n", v.ID, v.Node.Name, v.State)
 					} else {
-						msg += fmt.Sprintf("    🔵 task #%d Test %s: %s", v.ID, v.Node.Name, v.State)
+						msg += fmt.Sprintf("    🔵 task #%d Test %s: %s\n", v.ID, v.Node.Name, v.State)
 					}
 				}
 			}
