@@ -185,15 +185,7 @@ class Tester(Worker):
             logging.error('Failed to update task %s result ' % task['ID'])
             traceback.print_exc(file=sys.stderr)
             return False
-        try:
-            logging.info('Calling back task %s' % task['ID'])
-            rst = self._POST(path='task/' + str(task['ID']) + '/callback', data_dict={'worker': self.name})
-            if not (rst.code == HTTPStatus.OK and rst['result']):
-                logging.error('Callback task result: %s' % rst)
-                raise Exception('Failed to callback task')
-        except:
-            logging.error('Failed to callback task %s' % task['ID'])
-            traceback.print_exc(file=sys.stderr)
+        if not self.callback(task):
             return False
 
     def heartbeat(self):

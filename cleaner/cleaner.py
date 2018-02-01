@@ -8,6 +8,7 @@ import time
 import copy
 from vultr import Vultr
 from multiprocessing.dummy import Pool as ThreadPool
+from dnsimple import DNSimple
 
 sys.path.append("..")
 from worker import Worker
@@ -42,6 +43,10 @@ class Cleaner(Worker):
         # Init Vultr api instance
         self.vultrApikey = self.config.get('cleaner', 'vultrApikey')
         self.vultr = Vultr(self.vultrApikey)
+        # Init dnsimple api instance
+        self.dnsimpleUsername = self.config.get('cleaner', 'dnsimpleUsername')
+        self.dnsimplePassword = self.config.get('cleaner', 'dnsimplePassword')
+        self.dns = DNSimple(username=self.dnsimpleUsername, password=self.dnsimplePassword)
         # Function dic for different VPS providers
         self.supportedProviderList = ['Vultr']
         self.create_tmp_snapshot = {
@@ -58,6 +63,9 @@ class Cleaner(Worker):
         }
         self.get_server_ip = {
             'Vultr': self.get_server_ip_vultr
+        }
+        self.update_dns = {
+            'DNSimple': self.update_dns_dnsimple
         }
 
         # These kawaii variables↓ only works for Threads in Threads Pool
@@ -261,8 +269,36 @@ class Cleaner(Worker):
                 self.update_task_state(task)
                 return False
 
+        # Update DNS records(->6 if Failed)
+        logging.debug('Updating dns records...')
+        msg = "Updating dns records for node %s" % (task['Node']['Name'])
+        self.sync_log_and_broadcast(task, msg, emoji='working')
+        rst = self.update_dns[task['Node']['DNSProvider']](task)
+        if not rst:
+            msg = "Failed while updating dns records for node %s" % (task['Node']['Name'])
+            self.sync_log_and_broadcast(task, msg, emoji='fail')
+            self.taskStateID = 6
+            self.update_task_state(task)
+            return False
+
+        # Update Node info(->6 if Failed)
+        logging.debug('Updating node info...')
+        msg = "Updating node info for node %s" % (task['Node']['Name'])
+        self.sync_log_and_broadcast(task, msg, emoji='working')
+        rst = self.update_node_info(task)
+        if not rst:
+            msg = "Failed while updating node info for node %s" % (task['Node']['Name'])
+            self.sync_log_and_broadcast(task, msg, emoji='fail')
+            self.taskStateID = 6
+            self.update_task_state(task)
+            return False
+
         msg = "All cleaning works done for node %s, Shiny☆" % (task['Node']['Name'])
         self.sync_log_and_broadcast(task, msg, emoji='success')
+
+        # Perform worker callback, doesn't matter if it fails
+        self.callback(task)
+
         return True
 
     def heartbeat(self):
@@ -581,6 +617,78 @@ class Cleaner(Worker):
             self.sync_log_and_broadcast(task, msg, emoji='fail')
             return False
         msg = "Successfully created new %s instance [%s] for node %s" % (
-                  self.targetVPS['ram'], self.targetVPS['main_ip'], task['Node']['Name'])
+            self.targetVPS['ram'], self.targetVPS['main_ip'], task['Node']['Name'])
         self.sync_log_and_broadcast(task, msg, emoji='success')
+        return True
+
+    def update_dns_dnsimple(self, task):
+        # Find record ID using domain_prefix4 and domain_prefix6
+        dp4 = task['Node']['DomainPrefix4']
+        dp6 = task['Node']['DomainPrefix6']
+        dr = task['Node']['DomainRoot']
+        rst = self.do_safely(method=self.dns.records,
+                             description="getting DNS record ID",
+                             args={
+                                 'id_or_domain_name': dr
+                             })
+        if isinstance(rst, bool) and not rst:
+            logging.error("Failed while getting records of %s" % dr)
+            return False
+        dp4_id, dp6_id = -1, -1
+        for r in rst:
+            if r['record']['name'] == dp4:
+                dp4_id = r['record']['id']
+            if r['record']['name'] == dp6:
+                dp6_id = r['record']['id']
+        ip_list = self.get_server_ip[task['Node']['Provider']]()
+        logging.debug("Record %s ID %s Record %s ID %s" % (dp4, dp4_id, dp6, dp6_id))
+        # Update IPv4 and IPv6 records
+        dp4_data = {
+            'content': ip_list['ipv4']
+        }
+        dp6_data = {
+            'content': ip_list['ipv6']
+        }
+        if dp4_id != -1:
+            rst = self.do_safely(method=self.dns.update_record,
+                                 description="updating DNS record %s" % dp4,
+                                 args={
+                                     'id_or_domain_name': dr,
+                                     'record_id': dp4_id,
+                                     'data': dp4_data
+                                 })
+            if isinstance(rst, bool) and not rst:
+                logging.error("Failed while updating record of %s" % dp4)
+                return False
+        if dp6_id != -1:
+            rst = self.do_safely(method=self.dns.update_record,
+                                 description="updating DNS record %s" % dp6,
+                                 args={
+                                     'id_or_domain_name': dr,
+                                     'record_id': dp6_id,
+                                     'data': dp6_data
+                                 })
+            if isinstance(rst, bool) and not rst:
+                logging.error("Failed while updating record of %s" % dp6)
+                return False
+
+        return True
+
+    def update_node_info(self, task):
+        ip_list = self.get_server_ip[task['Node']['Provider']]()
+        try:
+            rst = self._PUT(path='node/' + str(task['Node']['ID']),
+                      data_dict={
+                          'ipv4': ip_list['ipv4'],
+                          'ipv6': ip_list['ipv6']
+                      })
+            logging.debug('Result: %s' % rst)
+            if (rst.code != HTTPStatus.OK) or (not rst['result']):
+                logging.error('Result: %s' % rst)
+                raise Exception('Update node info failed')
+        except:
+            logging.error("Failed while updating node info"
+                          " for node %s for task %s" %(task['Node']['Name'], task['ID']))
+            traceback.print_exc(file=sys.stderr)
+            return False
         return True
