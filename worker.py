@@ -8,6 +8,7 @@ import logging
 import traceback
 import sys
 from urllib.parse import urlencode
+from httpstatus import HTTPStatus
 
 
 class DictWrapper(dict):
@@ -119,3 +120,16 @@ class Worker:
 
     def _PUT(self, path, data_dict=None, isDeserialize=True, headers=None):
         return self._POST(path, data_dict, isDeserialize, headers=headers, method='PUT')
+
+    def callback(self, task):
+        try:
+            logging.info('Calling back task %s' % task['ID'])
+            rst = self._POST(path='task/' + str(task['ID']) + '/callback', data_dict={'worker': self.name})
+            if not (rst.code == HTTPStatus.OK and rst['result']):
+                logging.error('Callback task result: %s' % rst)
+                raise Exception('Failed to callback task')
+        except:
+            logging.error('Failed to callback task %s' % task['ID'])
+            traceback.print_exc(file=sys.stderr)
+            return False
+        return True
