@@ -46,6 +46,15 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	tasks, total, err := model.GetTasks(model.Db, class, state, ipVer, order, page, perPage)
 	if err != nil {
 		logging.Error(err)
+		if err.Error() == "GetTasks: sql: no rows in result set" {
+			res := map[string]interface{}{
+				"code":   http.StatusNotFound,
+				"result": false,
+				"msg":    "Error occurred querying tasks: " + err.Error(),
+			}
+			responseJson(w, res, http.StatusNotFound)
+			return
+		}
 		res := map[string]interface{}{
 			"code":   http.StatusInternalServerError,
 			"result": false,

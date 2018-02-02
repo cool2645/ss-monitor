@@ -6,9 +6,11 @@ import Status from './Status.vue'
 import Tasks from './Tasks.vue'
 import Task from './Task.vue'
 import TreeView from "vue-json-tree-view"
+import LaravelVuePagination from 'laravel-vue-pagination'
 
 Vue.use(TreeView);
 Vue.use(VueRouter);
+Vue.component('pagination', LaravelVuePagination);
 
 const routes = [
     { path: '/', redirect: '/status' },

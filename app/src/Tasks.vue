@@ -12,7 +12,7 @@
             <div class="row">
                 <div class="col-sm-6">
                     <label for="worker_type" class="control-label">任务类型</label>
-                    <select @change="updateData" v-model="workerType" class="form-control" id="worker_type">
+                    <select @change="updateData(1)" v-model="workerType" class="form-control" id="worker_type">
                         <option value="%">全部</option>
                         <option value="watcher">Watcher</option>
                         <option value="tester">Tester</option>
@@ -21,7 +21,7 @@
                 </div>
                 <div v-if="!noIpVer" class="col-sm-6">
                     <label v-if="!noIpVer" for="ip_ver" class="control-label">IP 协议（Tester）</label>
-                    <select @change="updateData" v-model="ipVer" class="form-control" id="ip_ver">
+                    <select @change="updateData(1)" v-model="ipVer" class="form-control" id="ip_ver">
                         <option value="%">不限</option>
                         <option value="4">IPv4</option>
                         <option value="6">IPv6</option>
@@ -40,14 +40,14 @@
                         <th>创建时间</th>
                         <th>更新时间</th>
                     </tr>
-                    <tr v-for="task in jsonSource.data">
+                    <tr v-for="task in data">
                         <td><a :href="'#/task/' + task.ID">{{ '#' + task.ID }}</a></td>
                         <td>{{ task.Node.Name || task.ServerName }}</td>
                         <td v-if="!noIpVer">{{ task.Class === 'tester' ? task.IPVer : '' }}</td>
                         <td>
                             <a :href="'#/task/' + task.ID" v-if="task.State === 'Queuing'" class="btn btn-info">{{ task.State }}</a>
-                            <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Passing' || task.State === 'Shiny☆'" class="btn btn-success">{{
-                                task.State }}</a>
+                            <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Passing'" class="btn btn-success">{{ task.State }}</a>
+                            <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Shiny☆'" class="btn btn-shiny">{{ task.State }}</a>
                             <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Failing'" class="btn btn-danger">{{ task.State }}</a>
                             <a :href="'#/task/' + task.ID" v-else class="btn btn-warning">{{ task.State }}</a>
                         </td>
@@ -61,6 +61,7 @@
                     </tbody>
                 </table>
             </div>
+            <pagination :data="laravelData" :limit=2 v-on:pagination-change-page="updateData"></pagination>
             <div class="row">
                 <div class="col-xs-12">
                     <div class="box box-default">
@@ -69,7 +70,7 @@
                             <h3 class="box-title">详细信息</h3>
                         </div>
                         <div class="box-body">
-                            <tree-view :data="jsonSource" :options="{maxDepth: 3}"></tree-view>
+                            <tree-view :data="jsonSource" :options="{maxDepth: 0}"></tree-view>
                         </div>
                     </div>
                 </div>
@@ -90,14 +91,37 @@
                 workerType: '%',
                 ipVer: '%',
                 page: 1,
+                perPage: 10,
                 noIpVer: false
             }
         },
+        computed: {
+            data() {
+                return this.jsonSource.result ? this.jsonSource.data.data : []
+            },
+            total() {
+                return this.jsonSource.result ? this.jsonSource.data.total : 0;
+            },
+            laravelData() {
+                return {
+                    current_page: this.page,
+                    data: [],
+                    from: (this.page - 1) * this.perPage + 1,
+                    last_page: Math.ceil(this.total / this.perPage),
+                    next_page_url: null,
+                    per_page: this.perPage,
+                    prev_page_url: null,
+                    to: (this.page) * this.perPage,
+                    total: this.total,
+                }
+            }
+        },
         mounted() {
-            this.updateData()
+            this.updateData(this.page)
         },
         methods: {
-            updateData() {
+            updateData(page) {
+                this.page = page;
                 this.noIpVer = this.workerType !== '%' && this.workerType !== 'tester';
                 let vm = this;
                 fetch(config.urlPrefix + '/task?' + urlParam({
@@ -120,6 +144,21 @@
     }
 </script>
 
-<style>
-
+<style lang="scss">
+    td {
+        vertical-align: middle !important;
+    }
+    .pagination {
+        margin-top: 0;
+    }
+    .btn-shiny {
+        color: #fff;
+        background-color: #b76add;
+        border-color: #a761ca;
+        &:hover {
+            color: #fff;
+            background-color: #a761ca;
+            border-color: #a761ca;
+        }
+    }
 </style>

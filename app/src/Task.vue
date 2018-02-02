@@ -21,18 +21,16 @@
                         <th>创建时间</th>
                         <th>更新时间</th>
                     </tr>
-                    <tr>
+                    <tr v-if="task">
                         <td><a :href="'#/task/' + task.ID">{{ '#' + task.ID }}</a></td>
                         <td>{{ task.Node.Name || task.ServerName }}</td>
                         <td v-if="!noIpVer">{{ task.Class === 'tester' ? task.IPVer : '' }}</td>
                         <td>
                             <a :href="'#/task/' + task.ID" v-if="task.State === 'Queuing'" class="btn btn-info">{{
                                 task.State }}</a>
-                            <a :href="'#/task/' + task.ID"
-                               v-else-if="task.State === 'Passing' || task.State === 'Shiny☆'" class="btn btn-success">{{
-                                task.State }}</a>
-                            <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Failing'" class="btn btn-danger">{{
-                                task.State }}</a>
+                            <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Passing'" class="btn btn-success">{{ task.State }}</a>
+                            <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Shiny☆'" class="btn btn-shiny">{{ task.State }}</a>
+                            <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Failing'" class="btn btn-danger">{{ task.State }}</a>
                             <a :href="'#/task/' + task.ID" v-else class="btn btn-warning">{{ task.State }}</a>
                         </td>
                         <td>
@@ -50,10 +48,23 @@
                 <div class="col-xs-12">
                     <div class="box box-primary">
                         <div class="box-header">
-                            <i class="fa fa-list"></i>
+                            <i class="fa fa-comment"></i>
+                            <h3 class="box-title">任务结果</h3>
+                        </div>
+                        <div v-if="task" class="box-body">
+                            <tree-view :data="result" :options="{maxDepth: 3}"></tree-view>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="box box-primary">
+                        <div class="box-header">
+                            <i class="fa fa-newspaper-o"></i>
                             <h3 class="box-title">任务日志</h3>
                         </div>
-                        <div class="box-body">
+                        <div v-if="task" class="box-body">
                             <pre>{{ task.Log }}</pre>
                         </div>
                     </div>
@@ -67,7 +78,7 @@
                             <h3 class="box-title">详细信息</h3>
                         </div>
                         <div class="box-body">
-                            <tree-view :data="jsonSource" :options="{maxDepth: 3}"></tree-view>
+                            <tree-view :data="jsonSource" :options="{maxDepth: 0}"></tree-view>
                         </div>
                     </div>
                 </div>
@@ -90,8 +101,18 @@
             this.updateData()
         },
         computed: {
+            noIpVer() {
+                return this.jsonSource.result ? this.jsonSource.data.Class !== 'tester' : false
+            },
             task() {
                 return this.jsonSource.data
+            },
+            result() {
+                try {
+                    return JSON.parse(this.jsonSource.data.Result)
+                } catch(e) {
+                    return {}
+                }
             }
         },
         methods: {
@@ -117,10 +138,26 @@
     }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+    td {
+        vertical-align: middle !important;
+    }
     pre {
         white-space: pre-wrap;
         word-wrap: break-word;
         white-space: -moz-pre-wrap;
+    }
+    .pagination {
+        margin-top: 0;
+    }
+    .btn-shiny {
+        color: #fff;
+        background-color: #b76add;
+        border-color: #a761ca;
+    &:hover {
+         color: #fff;
+         background-color: #a761ca;
+         border-color: #a761ca;
+     }
     }
 </style>

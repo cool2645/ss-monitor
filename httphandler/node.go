@@ -382,6 +382,15 @@ func GetNodes(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	nodes, err := model.GetNodes(model.Db)
 	if err != nil {
 		log.Error(err)
+		if err.Error() == "GetNodes: sql: no rows in result set" {
+			res := map[string]interface{}{
+				"code":   http.StatusNotFound,
+				"result": false,
+				"msg":    "Error occurred querying nodes: " + err.Error(),
+			}
+			responseJson(w, res, http.StatusNotFound)
+			return
+		}
 		res := map[string]interface{}{
 			"code":   http.StatusInternalServerError,
 			"result": false,
