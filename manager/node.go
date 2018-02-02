@@ -31,7 +31,7 @@ func InitNodes() {
 	for _, v := range ns {
 		nodes[v.ID] = node{Name: v.Name, IsCleaning: v.IsCleaning, Status: make(map[string]model.Task)}
 		if v.EnableWatching {
-			t, err := model.GetTaskByNode(model.Db, v.ID, "watcher", "%")
+			t, err := model.GetLastFinishedTask(model.Db, v.ID, "watcher", "%")
 			if err != nil {
 				log.Error(err)
 				nodes[v.ID].Status["CN"] = model.Task{}
@@ -40,7 +40,7 @@ func InitNodes() {
 			}
 		}
 		if v.EnableIPv4Testing {
-			t, err := model.GetTaskByNode(model.Db, v.ID, "tester", "4")
+			t, err := model.GetLastFinishedTask(model.Db, v.ID, "tester", "4")
 			if err != nil {
 				log.Error(err)
 				nodes[v.ID].Status["SS"] = model.Task{}
@@ -49,7 +49,7 @@ func InitNodes() {
 			}
 		}
 		if v.EnableIPv6Testing {
-			t, err := model.GetTaskByNode(model.Db, v.ID, "tester", "6")
+			t, err := model.GetLastFinishedTask(model.Db, v.ID, "tester", "6")
 			if err != nil {
 				log.Error(err)
 				nodes[v.ID].Status["SS-IPv6"] = model.Task{}
@@ -119,7 +119,7 @@ func TaskCallback(taskID uint, worker string) (err error) {
 	if task.CallbackID == 0 {
 		return
 	}
-	brotherTasks, err := model.GetTasksByCallbackID(model.Db, task.CallbackID)
+	brotherTasks, err := model.GetAllTasksByCallbackID(model.Db, task.CallbackID)
 	if err != nil {
 		log.Error(err)
 		msg := fmt.Sprintf("❗️ Error occured when task #%d callback with callback id #%d: %s\n", task.ID, task.CallbackID, err.Error())

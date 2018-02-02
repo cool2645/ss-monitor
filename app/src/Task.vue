@@ -15,6 +15,7 @@
                     <tr>
                         <th>运行 ID</th>
                         <th>节点/服务器名</th>
+                        <th>任务类型</th>
                         <th v-if="!noIpVer">IP 协议</th>
                         <th>运行结果</th>
                         <th>运行 Host</th>
@@ -24,6 +25,7 @@
                     <tr v-if="task">
                         <td><a :href="'#/task/' + task.ID">{{ '#' + task.ID }}</a></td>
                         <td>{{ task.Node.Name || task.ServerName }}</td>
+                        <td>{{ task.Class }}</td>
                         <td v-if="!noIpVer">{{ task.Class === 'tester' ? task.IPVer : '' }}</td>
                         <td>
                             <a :href="'#/task/' + task.ID" v-if="task.State === 'Queuing'" class="btn btn-info">{{
@@ -83,6 +85,53 @@
                     </div>
                 </div>
             </div>
+            <div v-if="isManager" class="table-responsive" style="margin-top: 20px">
+                <table class="table table-hover">
+                    <tbody>
+                    <tr>
+                        <th>运行 ID</th>
+                        <th>节点/服务器名</th>
+                        <th>类型/IP 协议</th>
+                        <th>运行结果</th>
+                        <th>运行 Host</th>
+                        <th>创建时间</th>
+                        <th>更新时间</th>
+                    </tr>
+                    <tr v-for="task in data">
+                        <td><a :href="'#/task/' + task.ID">{{ '#' + task.ID }}</a></td>
+                        <td>{{ task.Node.Name || task.ServerName }}</td>
+                        <td>{{ task.Class + '/' + task.IPVer }}</td>
+                        <td>
+                            <a :href="'#/task/' + task.ID" v-if="task.State === 'Queuing'" class="btn btn-info">{{ task.State }}</a>
+                            <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Passing'" class="btn btn-success">{{ task.State }}</a>
+                            <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Shiny☆'" class="btn btn-shiny">{{ task.State }}</a>
+                            <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Failing'" class="btn btn-danger">{{ task.State }}</a>
+                            <a :href="'#/task/' + task.ID" v-else class="btn btn-warning">{{ task.State }}</a>
+                        </td>
+                        <td>
+                            <a :href="'#/task/' + task.ID" v-if="task.Worker" class="btn btn-danger">{{ task.Worker }}</a>
+                            <p v-else>未指定</p>
+                        </td>
+                        <td>{{ task.CreatedAt }}</td>
+                        <td>{{ task.UpdatedAt }}</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <pagination v-if="isManager" :data="laravelData" :limit=2 v-on:pagination-change-page="updateDataChildren"></pagination>
+            <div v-if="isManager" class="row">
+                <div class="col-xs-12">
+                    <div class="box box-default">
+                        <div class="box-header">
+                            <i class="fa fa-list"></i>
+                            <h3 class="box-title">详细信息</h3>
+                        </div>
+                        <div class="box-body">
+                            <tree-view :data="jsonSourceChildren" :options="{maxDepth: 0}"></tree-view>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
         <!-- /.content -->
     </div><!-- /.content-wrapper -->
@@ -95,6 +144,10 @@
         data() {
             return {
                 jsonSource: {},
+                jsonSourceChildren: {},
+                isManager: false,
+                page: 1,
+                perPage: 10,
             }
         },
         mounted() {
@@ -113,6 +166,25 @@
                 } catch(e) {
                     return {}
                 }
+            },
+            data() {
+                return this.jsonSourceChildren.result ? this.jsonSourceChildren.data.data : []
+            },
+            total() {
+                return this.jsonSourceChildren.result ? this.jsonSourceChildren.data.total : 0;
+            },
+            laravelData() {
+                return {
+                    current_page: this.page,
+                    data: [],
+                    from: (this.page - 1) * this.perPage + 1,
+                    last_page: Math.ceil(this.total / this.perPage),
+                    next_page_url: null,
+                    per_page: this.perPage,
+                    prev_page_url: null,
+                    to: (this.page) * this.perPage,
+                    total: this.total,
+                }
             }
         },
         methods: {
@@ -123,12 +195,33 @@
                         res.json().then(
                             res => {
                                 if (res.result) {
-                                    vm.jsonSource = res
+                                    vm.jsonSource = res;
+                                    if (res.data.Class === 'manager')
+                                        this.updateDataChildren(1)
                                 }
                             }
                         )
                     });
-            }
+            },
+            updateDataChildren(page) {
+                this.page = page;
+                let vm = this;
+                fetch(config.urlPrefix + '/task?' + urlParam({
+                    callback_id: this.task.ID,
+                    page: this.page,
+                    order: 'desc'
+                }) )
+                    .then(res => {
+                        res.json().then(
+                            res => {
+                                if (res.result) {
+                                    vm.jsonSourceChildren = res;
+                                    vm.isManager = true;
+                                }
+                            }
+                        )
+                    });
+            },
         },
         watch: {
             '$route'(to, from) {
@@ -154,10 +247,10 @@
         color: #fff;
         background-color: #b76add;
         border-color: #a761ca;
-    &:hover {
-         color: #fff;
-         background-color: #a761ca;
-         border-color: #a761ca;
-     }
+        &:hover {
+             color: #fff;
+             background-color: #a761ca;
+             border-color: #a761ca;
+        }
     }
 </style>

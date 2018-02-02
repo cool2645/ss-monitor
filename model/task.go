@@ -40,12 +40,13 @@ func CreateTask(db *gorm.DB, task Task) (newTask Task, err error) {
 	return
 }
 
-func GetTasks(db *gorm.DB, class string, state string, ipVer string, order string, page uint, perPage uint) (tasks []Task, total uint, err error) {
+func GetTasks(db *gorm.DB, class string, state string, ipVer string, nodeID string, callbackID string, order string, page uint, perPage uint) (tasks []Task, total uint, err error) {
 	noLog := "id, callback_id, class, node_id, ip_ver, state, result, worker, created_at, updated_at, server_name, ss_json"
 	if perPage == 0 {
 		perPage = 10
 	}
 	err = db.Where("class like ?", class).Where("ip_ver like ?", ipVer).Where("state like ?", state).
+		Where("node_id like ?", nodeID).Where("callback_id like ?", callbackID).
 		Order("updated_at " + order).Offset((page - 1) * perPage).Limit(perPage).
 		Select(noLog).Preload("Node").Find(&tasks).Count(&total).Error
 	if err != nil {
@@ -55,7 +56,7 @@ func GetTasks(db *gorm.DB, class string, state string, ipVer string, order strin
 	return
 }
 
-func GetTasksByCallbackID(db *gorm.DB, callbackID uint) (tasks []Task, err error) {
+func GetAllTasksByCallbackID(db *gorm.DB, callbackID uint) (tasks []Task, err error) {
 	noLog := "id, callback_id, class, node_id, ip_ver, state, result, worker, created_at, updated_at, server_name, ss_json"
 	err = db.Where("callback_id = ?", callbackID).
 		Order("id asc").Select(noLog).Preload("Node").Find(&tasks).Error
@@ -66,11 +67,9 @@ func GetTasksByCallbackID(db *gorm.DB, callbackID uint) (tasks []Task, err error
 	return
 }
 
-func GetTaskByNode(db *gorm.DB, nodeID uint, class string, ipVer string) (task Task, err error) {
-	noLog := "id, callback_id, class, node_id, ip_ver, state, result, worker, created_at, updated_at, server_name, ss_json"
-	err = db.Where("node_id = ?", nodeID).Where("class like ?", class).
-		Where("state in (?)", []string{"Passing", "Failing", "Shiny☆"}).
-		Order("updated_at desc").Select(noLog).First(&task).Error
+func GetLastFinishedTask(db *gorm.DB, nodeID uint, class string, ipVer string) (task Task, err error) {
+	err = db.Where("node_id = ?", nodeID).Where("class like ?", class).Where("ip_ver like ?", ipVer).
+		Where("state in (?)", []string{"Passing", "Failing", "Shiny☆"}).Order("updated_at desc").First(&task).Error
 	if err != nil {
 		err = errors.Wrap(err, "GetTaskByNode")
 		return

@@ -14,17 +14,25 @@
                     <label for="worker_type" class="control-label">任务类型</label>
                     <select @change="updateData(1)" v-model="workerType" class="form-control" id="worker_type">
                         <option value="%">全部</option>
+                        <option value="manager">Manager</option>
                         <option value="watcher">Watcher</option>
                         <option value="tester">Tester</option>
                         <option value="cleaner">Cleaner</option>
                     </select>
                 </div>
                 <div v-if="!noIpVer" class="col-sm-6">
-                    <label v-if="!noIpVer" for="ip_ver" class="control-label">IP 协议（Tester）</label>
+                    <label v-if="!noIpVer" for="ip_ver" class="control-label">IP 协议</label>
                     <select @change="updateData(1)" v-model="ipVer" class="form-control" id="ip_ver">
                         <option value="%">不限</option>
                         <option value="4">IPv4</option>
                         <option value="6">IPv6</option>
+                    </select>
+                </div>
+                <div class="col-sm-6">
+                    <label for="node" class="control-label">节点</label>
+                    <select @change="updateData(1)" v-model="nodeId" class="form-control" id="node">
+                        <option value="%">不限</option>
+                        <option v-for="node in nodes" :value="node.ID">{{ node.Name }}</option>
                     </select>
                 </div>
             </div>
@@ -34,7 +42,7 @@
                     <tr>
                         <th>运行 ID</th>
                         <th>节点/服务器名</th>
-                        <th v-if="!noIpVer">IP 协议</th>
+                        <th v-if="!noIpVer">{{ workerType === 'tester' ? 'IP 协议' : '类型/IP 协议' }}</th>
                         <th>运行结果</th>
                         <th>运行 Host</th>
                         <th>创建时间</th>
@@ -43,7 +51,7 @@
                     <tr v-for="task in data">
                         <td><a :href="'#/task/' + task.ID">{{ '#' + task.ID }}</a></td>
                         <td>{{ task.Node.Name || task.ServerName }}</td>
-                        <td v-if="!noIpVer">{{ task.Class === 'tester' ? task.IPVer : '' }}</td>
+                        <td v-if="!noIpVer">{{ task.Class === 'tester' ? task.IPVer : task.Class + '/' + task.IPVer }}</td>
                         <td>
                             <a :href="'#/task/' + task.ID" v-if="task.State === 'Queuing'" class="btn btn-info">{{ task.State }}</a>
                             <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Passing'" class="btn btn-success">{{ task.State }}</a>
@@ -88,8 +96,10 @@
         data() {
             return {
                 jsonSource: {},
+                nodes: [],
                 workerType: '%',
                 ipVer: '%',
+                nodeId: '%',
                 page: 1,
                 perPage: 10,
                 noIpVer: false
@@ -117,6 +127,7 @@
             }
         },
         mounted() {
+            this.getNodes();
             this.updateData(this.page)
         },
         methods: {
@@ -127,6 +138,7 @@
                 fetch(config.urlPrefix + '/task?' + urlParam({
                     class: this.workerType,
                     ip_ver: this.ipVer,
+                    node_id: this.nodeId,
                     page: this.page,
                     order: 'desc'
                 }) )
@@ -139,12 +151,29 @@
                             }
                         )
                     });
+            },
+            getNodes() {
+                let vm = this;
+                fetch(config.urlPrefix + '/node?')
+                    .then(res => {
+                        res.json().then(
+                            res => {
+                                if (res.result) {
+                                    vm.nodes = res.data
+                                }
+                            }
+                        )
+                    });
             }
         }
     }
 </script>
 
 <style lang="scss">
+    .col-sm-6 {
+        margin-top: 5px;
+        margin-bottom: 5px;
+    }
     td {
         vertical-align: middle !important;
     }

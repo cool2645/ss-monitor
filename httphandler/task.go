@@ -14,6 +14,8 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	class := "%"
 	state := "%"
 	ipVer := "%"
+	nodeID := "%"
+	callbackID := "%"
 	order := "asc"
 	var page uint = 1
 	var perPage uint = 10
@@ -25,6 +27,12 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	}
 	if len(req.Form["ip_ver"]) == 1 {
 		ipVer = req.Form["ip_ver"][0]
+	}
+	if len(req.Form["node_id"]) == 1 {
+		nodeID = req.Form["node_id"][0]
+	}
+	if len(req.Form["callback_id"]) == 1 {
+		callbackID = req.Form["callback_id"][0]
 	}
 	if len(req.Form["order"]) == 1 {
 		order = req.Form["order"][0]
@@ -43,7 +51,7 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		}
 		perPage = uint(perPage64)
 	}
-	tasks, total, err := model.GetTasks(model.Db, class, state, ipVer, order, page, perPage)
+	tasks, total, err := model.GetTasks(model.Db, class, state, ipVer, nodeID, callbackID, order, page, perPage)
 	if err != nil {
 		logging.Error(err)
 		if err.Error() == "GetTasks: sql: no rows in result set" {
