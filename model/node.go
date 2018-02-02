@@ -31,10 +31,6 @@ type Node struct {
 	UpdatedAt         time.Time
 }
 
-func NodesStatus() {
-
-}
-
 func GetNodes(db *gorm.DB) (nodes []Node, err error) {
 	err = db.Order("name asc").Find(&nodes).Error
 	if err != nil {

@@ -16,6 +16,7 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	ipVer := "%"
 	order := "asc"
 	var page uint = 1
+	var perPage uint = 10
 	if len(req.Form["class"]) == 1 {
 		class = req.Form["class"][0]
 	}
@@ -35,7 +36,14 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		}
 		page = uint(page64)
 	}
-	tasks, err := model.GetTasks(model.Db, class, state, ipVer, order, page)
+	if len(req.Form["perPage"]) == 1 {
+		perPage64, err := strconv.ParseUint(req.Form["perPage"][0], 10, 32)
+		if err != nil {
+			logging.Error(err)
+		}
+		perPage = uint(perPage64)
+	}
+	tasks, total, err := model.GetTasks(model.Db, class, state, ipVer, order, page, perPage)
 	if err != nil {
 		logging.Error(err)
 		res := map[string]interface{}{
@@ -53,10 +61,14 @@ func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			tasks[i].SsJson = ""
 		}
 	}
+	data := map[string]interface{}{
+		"total": total,
+		"data":  tasks,
+	}
 	res := map[string]interface{}{
 		"code":   http.StatusOK,
 		"result": true,
-		"data":   tasks,
+		"data":   data,
 	}
 	responseJson(w, res, http.StatusOK)
 }
@@ -331,14 +343,17 @@ func SyncTaskStatus(w http.ResponseWriter, req *http.Request, ps httprouter.Para
 		return
 	}
 	taskID := uint(taskID64)
-	var state, log string
+	var state, result, log string
 	if len(req.Form["state"]) == 1 {
 		state = req.Form["state"][0]
+	}
+	if len(req.Form["result"]) == 1 {
+		result = req.Form["result"][0]
 	}
 	if len(req.Form["log"]) == 1 {
 		log = req.Form["log"][0]
 	}
-	err = model.UpdateTaskStatus(model.Db, taskID, worker, state, log)
+	err = model.UpdateTaskStatus(model.Db, taskID, worker, state, result, log)
 	if err != nil {
 		logging.Error(err)
 		if err.Error() == "SyncTaskStatus: Find task: record not found" {
