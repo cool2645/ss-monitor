@@ -47,8 +47,14 @@ func GetTasks(db *gorm.DB, class string, state string, ipVer string, nodeID stri
 	}
 	err = db.Where("class like ?", class).Where("ip_ver like ?", ipVer).Where("state like ?", state).
 		Where("node_id like ?", nodeID).Where("callback_id like ?", callbackID).
-		Order("updated_at " + order).Offset((page - 1) * perPage).Limit(perPage).
-		Select(noLog).Preload("Node").Find(&tasks).Count(&total).Error
+		Order("updated_at " + order).Limit(perPage).Offset((page - 1) * perPage).
+		Select(noLog).Preload("Node").Find(&tasks).Error
+	if err != nil {
+		err = errors.Wrap(err, "GetTasks")
+		return
+	}
+	err = db.Model(&Task{}).Where("class like ?", class).Where("ip_ver like ?", ipVer).Where("state like ?", state).
+		Where("node_id like ?", nodeID).Where("callback_id like ?", callbackID).Count(&total).Error
 	if err != nil {
 		err = errors.Wrap(err, "GetTasks")
 		return

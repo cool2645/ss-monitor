@@ -56,8 +56,11 @@ func NewNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if len(req.Form["dns_provider"]) == 1 {
 		node.DNSProvider = req.Form["dns_provider"][0]
 	}
-	if len(req.Form["snapshot"]) == 1 {
-		node.Snapshot = req.Form["snapshot"][0]
+	if len(req.Form["os"]) == 1 {
+		node.OS = req.Form["os"][0]
+	}
+	if len(req.Form["image"]) == 1 {
+		node.Image = req.Form["image"][0]
 	}
 	if len(req.Form["data_center"]) == 1 {
 		node.DataCenter = req.Form["data_center"][0]
@@ -137,8 +140,11 @@ func EditNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if len(req.Form["dns_provider"]) == 1 {
 		node.DNSProvider = req.Form["dns_provider"][0]
 	}
-	if len(req.Form["snapshot"]) == 1 {
-		node.Snapshot = req.Form["snapshot"][0]
+	if len(req.Form["os"]) == 1 {
+		node.OS = req.Form["os"][0]
+	}
+	if len(req.Form["image"]) == 1 {
+		node.Image = req.Form["image"][0]
 	}
 	if len(req.Form["data_center"]) == 1 {
 		node.DataCenter = req.Form["data_center"][0]

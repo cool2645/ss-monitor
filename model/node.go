@@ -24,7 +24,8 @@ type Node struct {
 	EnableIPv4Testing bool
 	EnableIPv6Testing bool
 	EnableCleaning    bool
-	Snapshot          string
+	OS                string
+	Image             string
 	DataCenter        string
 	Plan              string
 	CreatedAt         time.Time
