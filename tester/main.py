@@ -36,6 +36,7 @@ def main_loop():
     while loop:
         w.heartbeat()
         tasks = w.get_tasks()
+        logging.debug("Task list: %s" % tasks)
         result = pool.map_async(do, tasks)
         time.sleep(w.heartRate)
 

@@ -8,6 +8,8 @@ import threading
 import shutil
 import subprocess
 import time
+import re
+import json
 
 sys.path.append("..")
 from worker import Worker
@@ -21,6 +23,7 @@ class Tester(Worker):
         super().__init__(__file__)
         self.type = "tester"
         self.ipVer = int(self.config.get('tester', 'ipVer'))
+        self.rst_re = re.compile(r"callback\((.*?)\)")
         # These kawaii variables↓ only works for Threads in Threads Pool
         self.running = False
         self.tmpPath = self.config.get('tester', 'tmpPath')
@@ -148,7 +151,12 @@ class Tester(Worker):
 
             try:
                 logging.info('Updating task %s log' % task['ID'])
+                rst = self.rst_re.findall(log)
+                rst_list = []
+                for r in rst:
+                    rst_list.append(json.loads(r))
                 rst = self._PUT(path='task/' + str(task['ID']), data_dict={'worker': self.name,
+                                                                           'result': json.dumps(rst_list),
                                                                            'log': log})
                 if not (rst.code == HTTPStatus.OK and rst['result']):
                     logging.error('Update task log: %s' % rst)
@@ -212,7 +220,7 @@ class Tester(Worker):
         except:
             logging.error('Failed while getting tasks')
             traceback.print_exc(file=sys.stderr)
-        return rst['data']
+        return rst['data']['data']
 
     def test(self, task):
         # Try to assign one task

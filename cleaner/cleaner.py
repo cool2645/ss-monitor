@@ -34,8 +34,10 @@ class Cleaner(Worker):
         self.VULTR512MPLANID = '200'
         self.VULTR1024MPLANID = '201'
         self.lastException = None
-        self.taskState = ['Pending', 'Cleaning(Destroying)', 'Cleaning(Creating)',
-                          'Cleaning(Watching)', 'Shiny☆', 'Failing', 'Exception']
+        self.taskState = ['Pending', 'Destroying', 'Creating',
+                          'Watching', 'Shiny☆', 'Failing',
+                          'Snapshotting', 'Destroying', 'Updating DNS',
+                          'Updating node info', 'Desnapshotting']
         self.taskStateID = 0
         self.birthTime = int(time.time())
         self.attempts = 0
@@ -48,7 +50,8 @@ class Cleaner(Worker):
         self.dnsimplePassword = self.config.get('cleaner', 'dnsimplePassword')
         self.dns = DNSimple(username=self.dnsimpleUsername, password=self.dnsimplePassword)
         # Function dic for different VPS providers
-        self.supportedProviderList = ['Vultr']
+        self.supportedVPSProviderList = ['Vultr']
+        self.supportedDNSProviderList = ['DNSimple']
         self.create_tmp_snapshot = {
             'Vultr': self.create_tmp_snapshot_vultr
         }
@@ -68,9 +71,6 @@ class Cleaner(Worker):
             'DNSimple': self.update_dns_dnsimple
         }
 
-        # These kawaii variables↓ only works for Threads in Threads Pool
-        self.cleaning = False
-
     def get_tasks(self):
         rst = None
         try:
@@ -81,7 +81,7 @@ class Cleaner(Worker):
         except:
             logging.error('Failed while getting tasks')
             traceback.print_exc(file=sys.stderr)
-        return rst['data']
+        return rst['data']['data']
 
     def sync_log_and_broadcast(self, task, msg, emoji='working'):
         self.taskLog.append(msg)
@@ -110,18 +110,23 @@ class Cleaner(Worker):
 
     def sync_log(self, task):
         log_dict = {
-            'taskStateID': self.taskStateID,
-            'taskElapsedTime': int(time.time()) - self.birthTime,
             'taskLogList': self.taskLog,
-            'oldVPSCount': len(self.oldVPSList),
-            'oldIPv4List': self.oldIPv4List,
             'oldVPSList': self.oldVPSList,
         }
+        rst_dict = {
+            'taskStateID': self.taskStateID,
+            'taskElapsedTime': int(time.time()) - self.birthTime,
+            'oldIPv4List': self.oldIPv4List,
+            'oldVPSCount': len(self.oldVPSList)
+        }
         try:
-            logs = json.dumps(log_dict)
-            logging.debug('Syncing log: %s' % logs)
+            log_str = json.dumps(log_dict)
+            rst_str = json.dumps(rst_dict)
+            logging.debug('Syncing log: %s' % log_str)
+            logging.debug('Syncing rst: %s' % rst_str)
             rst = self._PUT(path='task/' + str(task['ID']), data_dict={'worker': self.name,
-                                                                       'log': logs})
+                                                                       'result': rst_str,
+                                                                       'log': log_str})
             if rst.code == HTTPStatus.OK and rst['result']:
                 return True
             else:
@@ -155,6 +160,7 @@ class Cleaner(Worker):
                 raise Exception('Invalid task assign result')
             elif rst['result']:
                 # Update task state(0)
+                self.taskStateID = 0
                 if not self.update_task_state(task):
                     return False
             elif not rst['result']:
@@ -169,8 +175,15 @@ class Cleaner(Worker):
 
         # Check if supports the provider(0)
         provider = task['Node']['Provider']
-        if provider not in self.supportedProviderList:
-            msg = "Unsupported provider %s" % provider
+        if provider not in self.supportedVPSProviderList:
+            msg = "Unsupported VPS provider %s" % provider
+            self.sync_log_and_broadcast(task, msg, emoji='fail')
+            self.taskStateID = 5
+            self.update_task_state(task)
+            return False
+        dns_provider = task['Node']['DNSProvider']
+        if dns_provider not in self.supportedDNSProviderList:
+            msg = "Unsupported DNS provider %s" % dns_provider
             self.sync_log_and_broadcast(task, msg, emoji='fail')
             self.taskStateID = 5
             self.update_task_state(task)
@@ -186,10 +199,12 @@ class Cleaner(Worker):
             self.update_task_state(task)
             return False
 
-        # Set target snapshot ID, create temporary snapshot if needed(0)
+        # Set target snapshot ID, create temporary snapshot if needed(6)
         if task['Node']['Snapshot'] is None or task['Node']['Snapshot'] == '':
             msg = "Creating temporary snapshot"
             self.sync_log_and_broadcast(task, msg, emoji='working')
+            self.taskStateID = 6
+            self.update_task_state(task)
             if not self.create_tmp_snapshot[provider](task):
                 msg = "Failed while creating temporary snapshot"
                 self.sync_log_and_broadcast(task, msg, emoji='fail')
@@ -222,7 +237,6 @@ class Cleaner(Worker):
                 'server_name': self.get_server_ip[provider]()['ipv4']
             }
             rst = self.assign_task_and_wait(task=task, new_task_dict=watcher_task_dict)
-
             # Check watch task result()
             if isinstance(rst, bool) and not rst:
                 msg = "Failed while calling watcher to watch [%s]" % (self.targetVPS['main_ip'])
@@ -231,33 +245,64 @@ class Cleaner(Worker):
                 self.update_task_state(task)
                 return False
             if rst['State'] == 'Passing':
-                msg = "Watcher returned %s, finished cleaning for node %s" % (rst['State'], task['Node']['Name'])
+                msg = "Watcher returned %s, finished cleaning for node %s, Shiny準備中" % (
+                    rst['State'], task['Node']['Name'])
                 self.sync_log_and_broadcast(task, msg, emoji='success')
-                self.taskStateID = 4
-                self.update_task_state(task)
                 break
             else:
                 msg = "Watcher returned %s, retrying" % (rst['State'])
                 self.sync_log_and_broadcast(task, msg, emoji='fail')
 
-        # Destroy temporary snapshot if needed(->6 if Failed)
+        # Update DNS records(8)
+        logging.debug('Updating dns records...')
+        msg = "Updating dns records for node %s" % (task['Node']['Name'])
+        self.sync_log_and_broadcast(task, msg, emoji='working')
+        self.taskStateID = 8
+        self.update_task_state(task)
+        rst = self.update_dns[task['Node']['DNSProvider']](task)
+        if not rst:
+            msg = "Failed while updating dns records for node %s" % (task['Node']['Name'])
+            self.sync_log_and_broadcast(task, msg, emoji='fail')
+            self.taskStateID = 5
+            self.update_task_state(task)
+            return False
+
+        # Update Node info(9)
+        logging.debug('Updating node info...')
+        msg = "Updating node info for node %s" % (task['Node']['Name'])
+        self.sync_log_and_broadcast(task, msg, emoji='working')
+        self.taskStateID = 9
+        self.update_task_state(task)
+        rst = self.update_node_info(task)
+        if not rst:
+            msg = "Failed while updating node info for node %s" % (task['Node']['Name'])
+            self.sync_log_and_broadcast(task, msg, emoji='fail')
+            self.taskStateID = 5
+            self.update_task_state(task)
+            return False
+
+        # Destroy temporary snapshot if needed(10)
         if need_destroy_snapshot:
             msg = "Destroying temporary snapshot for node %s" % (task['Node']['Name'])
             self.sync_log_and_broadcast(task, msg, emoji='working')
+            self.taskStateID = 10
+            self.update_task_state(task)
             if not self.destroy_tmp_snapshot[provider](task):
                 msg = "Failed while destroying temporary snapshot for node %s" % (task['Node']['Name'])
                 self.sync_log_and_broadcast(task, msg, emoji='fail')
-                self.taskStateID = 6
+                self.taskStateID = 5
                 self.update_task_state(task)
                 return False
             else:
                 msg = "Successfully destroyed temporary snapshot for node %s" % (task['Node']['Name'])
                 self.sync_log_and_broadcast(task, msg, emoji='success')
 
-        # Wait for destroy threads and check returns(->6 if Failed)
+        # Wait for destroy threads and check returns(7)
         logging.debug('Waiting for destroy threads...')
         msg = "Waiting for all destroy threads to return for node %s" % (task['Node']['Name'])
         self.sync_log_and_broadcast(task, msg, emoji='working')
+        self.taskStateID = 7
+        self.update_task_state(task)
         for rst in self.destroyResults:
             rst.wait()
         logging.debug('Checking for returns of destroy threads...')
@@ -265,36 +310,14 @@ class Cleaner(Worker):
             if not (rst.ready() and rst.successful() and rst.get()):
                 msg = "One of the destroy threads returned False for node %s" % (task['Node']['Name'])
                 self.sync_log_and_broadcast(task, msg, emoji='fail')
-                self.taskStateID = 6
+                self.taskStateID = 5
                 self.update_task_state(task)
                 return False
 
-        # Update DNS records(->6 if Failed)
-        logging.debug('Updating dns records...')
-        msg = "Updating dns records for node %s" % (task['Node']['Name'])
-        self.sync_log_and_broadcast(task, msg, emoji='working')
-        rst = self.update_dns[task['Node']['DNSProvider']](task)
-        if not rst:
-            msg = "Failed while updating dns records for node %s" % (task['Node']['Name'])
-            self.sync_log_and_broadcast(task, msg, emoji='fail')
-            self.taskStateID = 6
-            self.update_task_state(task)
-            return False
-
-        # Update Node info(->6 if Failed)
-        logging.debug('Updating node info...')
-        msg = "Updating node info for node %s" % (task['Node']['Name'])
-        self.sync_log_and_broadcast(task, msg, emoji='working')
-        rst = self.update_node_info(task)
-        if not rst:
-            msg = "Failed while updating node info for node %s" % (task['Node']['Name'])
-            self.sync_log_and_broadcast(task, msg, emoji='fail')
-            self.taskStateID = 6
-            self.update_task_state(task)
-            return False
-
         msg = "All cleaning works done for node %s, Shiny☆" % (task['Node']['Name'])
         self.sync_log_and_broadcast(task, msg, emoji='success')
+        self.taskStateID = 4
+        self.update_task_state(task)
 
         # Perform worker callback, doesn't matter if it fails
         self.callback(task)
@@ -678,17 +701,17 @@ class Cleaner(Worker):
         ip_list = self.get_server_ip[task['Node']['Provider']]()
         try:
             rst = self._PUT(path='node/' + str(task['Node']['ID']),
-                      data_dict={
-                          'ipv4': ip_list['ipv4'],
-                          'ipv6': ip_list['ipv6']
-                      })
+                            data_dict={
+                                'ipv4': ip_list['ipv4'],
+                                'ipv6': ip_list['ipv6']
+                            })
             logging.debug('Result: %s' % rst)
             if (rst.code != HTTPStatus.OK) or (not rst['result']):
                 logging.error('Result: %s' % rst)
                 raise Exception('Update node info failed')
         except:
             logging.error("Failed while updating node info"
-                          " for node %s for task %s" %(task['Node']['Name'], task['ID']))
+                          " for node %s for task %s" % (task['Node']['Name'], task['ID']))
             traceback.print_exc(file=sys.stderr)
             return False
         return True

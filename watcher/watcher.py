@@ -59,8 +59,10 @@ class Watcher(Worker):
         while self.pinging:
             if self.toSync:
                 ping_rst = self.generate_report(self.rawRst)
+                ping_log = ping_rst.pop('log')
                 try:
                     ping_rst_str = json.dumps(ping_rst)
+                    ping_log_str = json.dumps(ping_log)
                 except:
                     logging.error("Failed while dumping json")
                     traceback.print_exc(file=sys.stderr)
@@ -68,7 +70,8 @@ class Watcher(Worker):
                 try:
                     logging.info('Updating task %s log' % task['ID'])
                     rst = self._PUT(path='task/' + str(task['ID']), data_dict={'worker': self.name,
-                                                                               'log': ping_rst_str})
+                                                                               'result': ping_rst_str,
+                                                                               'log': ping_log_str})
                     if not (rst.code == HTTPStatus.OK and rst['result']):
                         logging.error('Update task log: %s' % rst)
                         raise Exception('Failed to update task log')
@@ -143,7 +146,7 @@ class Watcher(Worker):
             logging.error("Failed while calculating result")
             traceback.print_exc(file=sys.stderr)
             return "", False
-        data['data'] = rst
+        data['log'] = rst
         return data
 
     def heartbeat(self):
@@ -167,7 +170,7 @@ class Watcher(Worker):
         except:
             logging.error('Failed while getting tasks')
             traceback.print_exc(file=sys.stderr)
-        return rst['data']
+        return rst['data']['data']
 
     def watch(self, task):
         # Try to assign one task
