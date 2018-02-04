@@ -47,8 +47,10 @@ def do(task):
     return cleaner.clean(task)
 
 
-if __name__ == '__main__':
-    main()
+def test2():
+    c = Cleaner()
+    print(c.init_provider_api_conoha())
+
 
 # def test():
 # test_task = {
@@ -110,3 +112,6 @@ if __name__ == '__main__':
 #     'server_name': '45.77.148.98'
 # }
 # print(c.assign_task_and_wait(task=test_task, new_task_dict=task_dict))
+if __name__ == '__main__':
+    main()
+    # test2()

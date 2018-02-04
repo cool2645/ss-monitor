@@ -80,8 +80,10 @@ class Watcher(Worker):
                     traceback.print_exc(file=sys.stderr)
                     return False
         ping_rst = self.generate_report(self.rawRst)
+        ping_log = ping_rst.pop('log')
         try:
             ping_rst_str = json.dumps(ping_rst)
+            ping_log_str = json.dumps(ping_log)
         except:
             logging.error("Failed while dumping json")
             traceback.print_exc(file=sys.stderr)
@@ -91,7 +93,8 @@ class Watcher(Worker):
             logging.info('Updating task %s result' % task['ID'])
             rst = self._PUT(path='task/' + str(task['ID']), data_dict={'worker': self.name,
                                                                        'state': state,
-                                                                       'log': ping_rst_str})
+                                                                       'result': ping_rst_str,
+                                                                       'log': ping_log_str})
             if not (rst.code == HTTPStatus.OK and rst['result']):
                 logging.error('Update task result: %s' % rst)
                 raise Exception('Failed to update task result')

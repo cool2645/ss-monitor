@@ -9,6 +9,9 @@ import copy
 from vultr import Vultr
 from multiprocessing.dummy import Pool as ThreadPool
 from dnsimple import DNSimple
+from conoha.config import Config as ConohaConfig
+from conoha.api import Token
+from conoha.compute import VMList, VMImageList, VMImage, VM, VMPlanList, VMPlan
 
 sys.path.append("..")
 from worker import Worker
@@ -45,6 +48,15 @@ class Cleaner(Worker):
         # Init Vultr api instance
         self.vultrApikey = self.config.get('cleaner', 'vultrApikey')
         self.vultr = Vultr(self.vultrApikey)
+        # Init ConohaConfig instance
+        self.conoha_conf = ConohaConfig(fromDict={
+            'api': {
+                'user': self.config.get('cleaner', 'conohaUser'),
+                'passwd': self.config.get('cleaner', 'conohaPasswd'),
+                'tenant': self.config.get('cleaner', 'conohaTenant')
+            }
+        })
+        self.conoha_token = None
         # Init dnsimple api instance
         self.dnsimpleUsername = self.config.get('cleaner', 'dnsimpleUsername')
         self.dnsimplePassword = self.config.get('cleaner', 'dnsimplePassword')
@@ -52,6 +64,10 @@ class Cleaner(Worker):
         # Function dic for different VPS providers
         self.supportedVPSProviderList = ['Vultr']
         self.supportedDNSProviderList = ['DNSimple']
+        self.init_provider_api = {
+            'Vultr': self.init_provider_api_vultr,
+            'Conoha': self.init_provider_api_conoha
+        }
         self.create_tmp_snapshot = {
             'Vultr': self.create_tmp_snapshot_vultr
         }
@@ -70,6 +86,23 @@ class Cleaner(Worker):
         self.update_dns = {
             'DNSimple': self.update_dns_dnsimple
         }
+
+    def init_provider_api_vultr(self):
+        return True
+
+    def init_provider_api_conoha(self):
+        rst = self.do_safely(
+            method=Token,
+            description="init conoha api",
+            args={
+                'conf': self.conoha_conf
+            }
+        )
+        if isinstance(rst, bool) and not rst:
+            logging.error("Failed while init conoha api")
+            return False
+        self.conoha_token = rst
+        return True
 
     def get_tasks(self):
         rst = None
@@ -169,12 +202,21 @@ class Cleaner(Worker):
             logging.error('Failed while assigning task %s' % task['ID'])
             traceback.print_exc(file=sys.stderr)
 
+        # Init VPS api(0)
+        provider = task['Node']['Provider']
+        logging.debug("Init API instance for provider %s for task %s" % (provider, task['ID']))
+        if not self.init_provider_api[provider]:
+            msg = "Failed while initiating api for provider %s" % provider
+            self.sync_log_and_broadcast(task, msg, emoji='fail')
+            self.taskStateID = 5
+            self.update_task_state(task)
+            return False
+
         # Broadcast start cleaning(0)
         msg = "Start cleaning node %s" % (task['Node']['Name'])
         self.sync_log_and_broadcast(task, msg, emoji='working')
 
         # Check if supports the provider(0)
-        provider = task['Node']['Provider']
         if provider not in self.supportedVPSProviderList:
             msg = "Unsupported VPS provider %s" % provider
             self.sync_log_and_broadcast(task, msg, emoji='fail')
