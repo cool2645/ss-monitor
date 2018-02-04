@@ -185,7 +185,7 @@
                                     $("#msg-warning").hide(100);
                                     $("#msg-error").hide(100);
                                     $("#msg-success").show(100);
-                                    window.setTimeout("location.href = '#/task'", 2000);
+                                    window.setTimeout("location.href = '/task'", 2000);
                                 } else {
                                     vm.error = "发生错误：" + res.msg;
                                     $("#msg-warning").hide(100);

@@ -19,6 +19,10 @@ import (
 
 var mux = httprouter.New()
 
+func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "app/index.html")
+}
+
 func main() {
 
 	_, err := toml.DecodeFile("config.toml", &GlobCfg)
@@ -73,6 +77,8 @@ func main() {
 	mux.DELETE("/api/node/:id/status/isCleaning", httphandler.ResetNode)
 
 	//mux.ServeFiles("/static/*filepath", http.Dir("static"))
+
+	mux.NotFound = http.HandlerFunc(NotFoundHandler)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   GlobCfg.ALLOW_ORIGIN,
