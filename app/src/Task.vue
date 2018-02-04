@@ -33,20 +33,20 @@
                         <th>更新时间</th>
                     </tr>
                     <tr v-if="task">
-                        <td><a :href="'/task/' + task.ID">{{ '#' + task.ID }}</a></td>
+                        <td><a href="javascript:;" @click="location('/task/' + task.ID)">{{ '#' + task.ID }}</a></td>
                         <td>{{ task.Node.Name || task.ServerName }}</td>
                         <td>{{ task.Class }}</td>
                         <td v-if="!noIpVer">{{ task.Class === 'tester' ? task.IPVer : '' }}</td>
                         <td>
-                            <a :href="'/task/' + task.ID" v-if="task.State === 'Queuing'" class="btn btn-info">{{
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-if="task.State === 'Queuing'" class="btn btn-info">{{
                                 task.State }}</a>
-                            <a :href="'/task/' + task.ID" v-else-if="task.State === 'Passing'" class="btn btn-success">{{ task.State }}</a>
-                            <a :href="'/task/' + task.ID" v-else-if="task.State === 'Shiny☆'" class="btn btn-shiny">{{ task.State }}</a>
-                            <a :href="'/task/' + task.ID" v-else-if="task.State === 'Failing'" class="btn btn-danger">{{ task.State }}</a>
-                            <a :href="'/task/' + task.ID" v-else class="btn btn-warning">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else-if="task.State === 'Passing'" class="btn btn-success">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else-if="task.State === 'Shiny☆'" class="btn btn-shiny">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else-if="task.State === 'Failing'" class="btn btn-danger">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else class="btn btn-warning">{{ task.State }}</a>
                         </td>
                         <td>
-                            <a :href="'/task/' + task.ID" v-if="task.Worker" class="btn btn-danger">{{ task.Worker
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-if="task.Worker" class="btn btn-danger">{{ task.Worker
                                 }}</a>
                             <p v-else>未指定</p>
                         </td>
@@ -108,18 +108,18 @@
                         <th>更新时间</th>
                     </tr>
                     <tr v-for="task in data">
-                        <td><a :href="'/task/' + task.ID">{{ '#' + task.ID }}</a></td>
+                        <td><a href="javascript:;" @click="location('/task/' + task.ID)">{{ '#' + task.ID }}</a></td>
                         <td>{{ task.Node.Name || task.ServerName }}</td>
                         <td>{{ task.Class + '/' + task.IPVer }}</td>
                         <td>
-                            <a :href="'/task/' + task.ID" v-if="task.State === 'Queuing'" class="btn btn-info">{{ task.State }}</a>
-                            <a :href="'/task/' + task.ID" v-else-if="task.State === 'Passing'" class="btn btn-success">{{ task.State }}</a>
-                            <a :href="'/task/' + task.ID" v-else-if="task.State === 'Shiny☆'" class="btn btn-shiny">{{ task.State }}</a>
-                            <a :href="'/task/' + task.ID" v-else-if="task.State === 'Failing'" class="btn btn-danger">{{ task.State }}</a>
-                            <a :href="'/task/' + task.ID" v-else class="btn btn-warning">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-if="task.State === 'Queuing'" class="btn btn-info">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else-if="task.State === 'Passing'" class="btn btn-success">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else-if="task.State === 'Shiny☆'" class="btn btn-shiny">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else-if="task.State === 'Failing'" class="btn btn-danger">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else class="btn btn-warning">{{ task.State }}</a>
                         </td>
                         <td>
-                            <a :href="'/task/' + task.ID" v-if="task.Worker" class="btn btn-danger">{{ task.Worker }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-if="task.Worker" class="btn btn-danger">{{ task.Worker }}</a>
                             <p v-else>未指定</p>
                         </td>
                         <td>{{ task.CreatedAt }}</td>
@@ -166,7 +166,7 @@
             this.startClocking()
         },
         beforeDestroy() {
-            window.clearInterval(this.clock)
+            clearInterval(this.clock)
         },
         watch: {
             $route() {
@@ -209,9 +209,12 @@
             }
         },
         methods: {
+            location(href) {
+                this.$router.push({path: href});
+            },
             startClocking() {
                 $("#msg-error").hide(10);
-                this.clock = window.setInterval(this.updateData, 5000);
+                this.clock = setInterval(this.updateData, 5000);
                 this.updateData();
             },
             dismissAlert() {
@@ -233,7 +236,7 @@
                     })
                     .catch(error => {
                         $("#msg-error").hide(10).show(100);
-                        window.clearInterval(this.clock);
+                        clearInterval(this.clock);
                     });
             },
             onPageChange(page) {
@@ -260,7 +263,7 @@
                     })
                     .catch(error => {
                         $("#msg-error").hide(10).show(100);
-                        window.clearInterval(this.clock);
+                        clearInterval(this.clock);
                     });
             },
         },
