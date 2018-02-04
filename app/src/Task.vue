@@ -118,7 +118,7 @@
                     </tbody>
                 </table>
             </div>
-            <pagination v-if="isManager" :data="laravelData" :limit=2 v-on:pagination-change-page="updateDataChildren"></pagination>
+            <pagination v-if="isManager" :data="laravelData" :limit=2 v-on:pagination-change-page="onPageChange"></pagination>
             <div v-if="isManager" class="row">
                 <div class="col-xs-12">
                     <div class="box box-default">
@@ -146,12 +146,18 @@
                 jsonSource: {},
                 jsonSourceChildren: {},
                 isManager: false,
-                page: 1,
+                page: this.$route.hash.substr(1) || 1,
                 perPage: 10,
             }
         },
         mounted() {
             this.updateData()
+        },
+        watch: {
+            $route() {
+                this.page = this.$route.hash.substr(1) || 1;
+                this.updateDataChildren();
+            }
         },
         computed: {
             noIpVer() {
@@ -197,14 +203,18 @@
                                 if (res.result) {
                                     vm.jsonSource = res;
                                     if (res.data.Class === 'manager')
-                                        this.updateDataChildren(1)
+                                        this.updateDataChildren()
                                 }
                             }
                         )
                     });
             },
-            updateDataChildren(page) {
+            onPageChange(page) {
                 this.page = page;
+                this.$router.push({hash: '#' + page});
+                this.updateDataChildren();
+            },
+            updateDataChildren() {
                 let vm = this;
                 fetch(config.urlPrefix + '/task?' + urlParam({
                     callback_id: this.task.ID,
@@ -223,25 +233,14 @@
                     });
             },
         },
-        watch: {
-            '$route'(to, from) {
-                this.updateData()
-            }
-        }
     }
 </script>
 
 <style lang="scss" scoped>
-    td {
-        vertical-align: middle !important;
-    }
     pre {
         white-space: pre-wrap;
         word-wrap: break-word;
         white-space: -moz-pre-wrap;
-    }
-    .pagination {
-        margin-top: 0;
     }
     .btn-shiny {
         color: #fff;

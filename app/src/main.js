@@ -7,6 +7,7 @@ import Tasks from './Tasks.vue'
 import Task from './Task.vue'
 import TreeView from "vue-json-tree-view"
 import LaravelVuePagination from 'laravel-vue-pagination'
+import './style.css'
 
 Vue.use(TreeView);
 Vue.use(VueRouter);

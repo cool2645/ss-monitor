@@ -12,7 +12,7 @@
             <div class="row">
                 <div class="col-sm-6">
                     <label for="worker_type" class="control-label">任务类型</label>
-                    <select @change="updateData(1)" v-model="workerType" class="form-control" id="worker_type">
+                    <select @change="onWorkerTypeChange" v-model="workerType" class="form-control" id="worker_type">
                         <option value="%">全部</option>
                         <option value="manager">Manager</option>
                         <option value="watcher">Watcher</option>
@@ -22,7 +22,7 @@
                 </div>
                 <div v-if="!noIpVer" class="col-sm-6">
                     <label v-if="!noIpVer" for="ip_ver" class="control-label">IP 协议</label>
-                    <select @change="updateData(1)" v-model="ipVer" class="form-control" id="ip_ver">
+                    <select @change="onIpVerChange" v-model="ipVer" class="form-control" id="ip_ver">
                         <option value="%">不限</option>
                         <option value="4">IPv4</option>
                         <option value="6">IPv6</option>
@@ -30,7 +30,7 @@
                 </div>
                 <div class="col-sm-6">
                     <label for="node" class="control-label">节点</label>
-                    <select @change="updateData(1)" v-model="nodeId" class="form-control" id="node">
+                    <select @change="onNodeChange" v-model="nodeId" class="form-control" id="node">
                         <option value="%">不限</option>
                         <option v-for="node in nodes" :value="node.ID">{{ node.Name }}</option>
                     </select>
@@ -69,7 +69,7 @@
                     </tbody>
                 </table>
             </div>
-            <pagination :data="laravelData" :limit=2 v-on:pagination-change-page="updateData"></pagination>
+            <pagination :data="laravelData" :limit=2 v-on:pagination-change-page="onPageChange"></pagination>
             <div class="row">
                 <div class="col-xs-12">
                     <div class="box box-default">
@@ -97,12 +97,12 @@
             return {
                 jsonSource: {},
                 nodes: [],
-                workerType: '%',
-                ipVer: '%',
-                nodeId: '%',
-                page: 1,
+                workerType: this.$route.query.worker_type || '%',
+                ipVer: this.$route.query.ip_ver || '%',
+                nodeId: this.$route.query.node_id || '%',
+                page:  this.$route.hash.substr(1) || 1,
                 perPage: 10,
-                noIpVer: false
+                noIpVer: this.workerType !== '%' && this.workerType !== 'tester'
             }
         },
         computed: {
@@ -128,12 +128,41 @@
         },
         mounted() {
             this.getNodes();
-            this.updateData(this.page)
+            this.updateData()
+        },
+        watch: {
+            $route() {
+                this.workerType = this.$route.query.worker_type || '%';
+                this.ipVer = this.$route.query.ip_ver || '%';
+                this.nodeId = this.$route.query.node_id || '%';
+                this.page = this.$route.hash.substr(1) || 1;
+                this.noIpVer = this.workerType !== '%' && this.workerType !== 'tester';
+                this.updateData();
+            }
         },
         methods: {
-            updateData(page) {
-                this.page = page;
+            onWorkerTypeChange() {
                 this.noIpVer = this.workerType !== '%' && this.workerType !== 'tester';
+                this.$router.push({query: {...this.$route.query, worker_type: this.workerType }});
+                this.page = 1;
+                this.updateData();
+            },
+            onIpVerChange() {
+                this.$router.push({query: {...this.$route.query, ip_ver: this.ipVer }});
+                this.page = 1;
+                this.updateData();
+            },
+            onNodeChange() {
+                this.$router.push({query: {...this.$route.query, node_id: this.nodeId }});
+                this.page = 1;
+                this.updateData();
+            },
+            onPageChange(page) {
+                this.page = page;
+                this.$router.push({hash: '#' + page, query: this.$route.query});
+                this.updateData();
+            },
+            updateData() {
                 let vm = this;
                 fetch(config.urlPrefix + '/task?' + urlParam({
                     class: this.workerType,
@@ -173,12 +202,6 @@
     .col-sm-6 {
         margin-top: 5px;
         margin-bottom: 5px;
-    }
-    td {
-        vertical-align: middle !important;
-    }
-    .pagination {
-        margin-top: 0;
     }
     .btn-shiny {
         color: #fff;

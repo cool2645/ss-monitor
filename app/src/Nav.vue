@@ -21,12 +21,18 @@
 </template>
 
 <script>
+    import config from './config'
     export default {
         props: [ 'routes' ],
         methods: {
             changeTab (path) {
                 this.$router.push(path);
+                $('body').removeClass('sidebar-open');
             }
+        },
+        mounted() {
+            document.title = config.appName;
+            document.getElementById('logo').innerText = config.appName
         }
     }
 </script>
