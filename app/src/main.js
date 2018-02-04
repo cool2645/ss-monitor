@@ -5,6 +5,7 @@ import Footer from './Footer.vue'
 import Status from './Status.vue'
 import Tasks from './Tasks.vue'
 import Task from './Task.vue'
+import Launch from './Launch.vue'
 import TreeView from "vue-json-tree-view"
 import LaravelVuePagination from 'laravel-vue-pagination'
 import './style.css'
@@ -18,7 +19,7 @@ const routes = [
     { title: '状态监控', path: '/status', icon: "fa-dashboard", component: Status},
     { title: '任务记录', path: '/task', icon: "fa-flag-checkered", component: Tasks },
     { path: '/task/:id', component: Task },
-    { title: '创建任务', path: '/launch', icon: "fa-eye", },
+    { title: '创建任务', path: '/launch', icon: "fa-eye", component: Launch },
     { title: '管理面板', path: '/admin', icon: "fa-server", },
 ];
 

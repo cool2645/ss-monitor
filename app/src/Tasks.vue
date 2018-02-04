@@ -51,7 +51,7 @@
                     <tr v-for="task in data">
                         <td><a :href="'#/task/' + task.ID">{{ '#' + task.ID }}</a></td>
                         <td>{{ task.Node.Name || task.ServerName }}</td>
-                        <td v-if="!noIpVer">{{ task.Class === 'tester' ? task.IPVer : task.Class + '/' + task.IPVer }}</td>
+                        <td v-if="!noIpVer">{{ workerType === 'tester' ? task.IPVer : task.Class + '/' + task.IPVer }}</td>
                         <td>
                             <a :href="'#/task/' + task.ID" v-if="task.State === 'Queuing'" class="btn btn-info">{{ task.State }}</a>
                             <a :href="'#/task/' + task.ID" v-else-if="task.State === 'Passing'" class="btn btn-success">{{ task.State }}</a>
@@ -102,7 +102,6 @@
                 nodeId: this.$route.query.node_id || '%',
                 page:  this.$route.hash.substr(1) || 1,
                 perPage: 10,
-                noIpVer: this.workerType !== '%' && this.workerType !== 'tester'
             }
         },
         computed: {
@@ -124,6 +123,9 @@
                     to: (this.page) * this.perPage,
                     total: this.total,
                 }
+            },
+            noIpVer() {
+                return this.workerType !== '%' && this.workerType !== 'tester'
             }
         },
         mounted() {
@@ -136,13 +138,11 @@
                 this.ipVer = this.$route.query.ip_ver || '%';
                 this.nodeId = this.$route.query.node_id || '%';
                 this.page = this.$route.hash.substr(1) || 1;
-                this.noIpVer = this.workerType !== '%' && this.workerType !== 'tester';
                 this.updateData();
             }
         },
         methods: {
             onWorkerTypeChange() {
-                this.noIpVer = this.workerType !== '%' && this.workerType !== 'tester';
                 this.$router.push({query: {...this.$route.query, worker_type: this.workerType }});
                 this.page = 1;
                 this.updateData();
