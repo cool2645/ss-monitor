@@ -10,6 +10,16 @@
         <!-- Content -->
         <section class="content">
             <div class="row">
+                <div class="col-md-12">
+                    <div id="msg-error" class="alert alert-danger alert-dismissable" style="display: none;">
+                        <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
+                        <h4><i class="icon fa fa-warning"></i> 出错了!</h4>
+
+                        <p id="msg-error-p">电波无法送达哦～<a href="javascript:;" @click="startClocking">重试</a></p>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
                 <div class="col-sm-6">
                     <label for="worker_type" class="control-label">任务类型</label>
                     <select @change="onWorkerTypeChange" v-model="workerType" class="form-control" id="worker_type">
@@ -102,6 +112,8 @@
                 nodeId: this.$route.query.node_id || '%',
                 page:  this.$route.hash.substr(1) || 1,
                 perPage: 10,
+                clock: null,
+                error: ""
             }
         },
         computed: {
@@ -130,7 +142,10 @@
         },
         mounted() {
             this.getNodes();
-            this.updateData()
+            this.startClocking();
+        },
+        beforeDestroy() {
+            window.clearInterval(this.clock)
         },
         watch: {
             $route() {
@@ -142,6 +157,14 @@
             }
         },
         methods: {
+            startClocking() {
+                $("#msg-error").hide(10);
+                this.clock = window.setInterval(this.updateData, 5000);
+                this.updateData();
+            },
+            dismissAlert() {
+                $("#msg-error").hide(10);
+            },
             onWorkerTypeChange() {
                 this.$router.push({query: {...this.$route.query, worker_type: this.workerType }});
                 this.page = 1;
@@ -179,6 +202,10 @@
                                 }
                             }
                         )
+                    })
+                    .catch(error => {
+                        $("#msg-error").hide(10).show(100);
+                        window.clearInterval(this.clock);
                     });
             },
             getNodes() {

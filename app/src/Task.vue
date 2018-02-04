@@ -9,6 +9,16 @@
         </section>
         <!-- Content -->
         <section class="content">
+            <div class="row">
+                <div class="col-md-12">
+                    <div id="msg-error" class="alert alert-danger alert-dismissable" style="display: none;">
+                        <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
+                        <h4><i class="icon fa fa-warning"></i> 出错了!</h4>
+
+                        <p id="msg-error-p">电波无法送达哦～<a href="javascript:;" @click="startClocking">重试</a></p>
+                    </div>
+                </div>
+            </div>
             <div class="table-responsive" style="margin-top: 20px">
                 <table class="table table-hover">
                     <tbody>
@@ -148,10 +158,15 @@
                 isManager: false,
                 page: this.$route.hash.substr(1) || 1,
                 perPage: 10,
+                clock: null,
+                error: ""
             }
         },
         mounted() {
-            this.updateData()
+            this.startClocking()
+        },
+        beforeDestroy() {
+            window.clearInterval(this.clock)
         },
         watch: {
             $route() {
@@ -194,6 +209,14 @@
             }
         },
         methods: {
+            startClocking() {
+                $("#msg-error").hide(10);
+                this.clock = window.setInterval(this.updateData, 5000);
+                this.updateData();
+            },
+            dismissAlert() {
+                $("#msg-error").hide(10);
+            },
             updateData() {
                 let vm = this;
                 fetch(config.urlPrefix + '/task/' + this.$route.params.id)
@@ -207,6 +230,10 @@
                                 }
                             }
                         )
+                    })
+                    .catch(error => {
+                        $("#msg-error").hide(10).show(100);
+                        window.clearInterval(this.clock);
                     });
             },
             onPageChange(page) {
@@ -230,6 +257,10 @@
                                 }
                             }
                         )
+                    })
+                    .catch(error => {
+                        $("#msg-error").hide(10).show(100);
+                        window.clearInterval(this.clock);
                     });
             },
         },
