@@ -7,7 +7,7 @@
             </h1>
         </section>
         <section class="content">
-            <auth></auth>
+            <login :auth="auth" @check-auth="checkAuth"></login>
             <div class="row">
                 <node :editing="true"></node>
                 <node :editing="false"></node>
@@ -17,13 +17,21 @@
 </template>
 
 <script>
-    import Auth from './Auth.vue'
+    import Login from './Login.vue'
     import Node from './Node.vue'
     export default {
+        props: [
+            "auth"
+        ],
         components: {
-            "auth": Auth,
+            "login": Login,
             "node": Node
         },
+        methods: {
+            checkAuth() {
+                this.$emit('check-auth')
+            }
+        }
     }
 </script>
 

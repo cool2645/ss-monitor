@@ -44,7 +44,7 @@
     </header>
     <nav-section v-bind:routes="routes"></nav-section>
     <div class="content-wrapper">
-        <router-view></router-view>
+        <router-view :auth="auth" @check-auth="checkAuth"></router-view>
     </div>
     <foot-section></foot-section>
 </div><!-- ./wrapper -->

@@ -72,30 +72,53 @@
     import config from './config'
     import urlParam from './buildUrlParam'
     export default {
+        props: [
+            "auth"
+        ],
         data() {
             return {
                 warning: "",
                 error: "",
-                isLogin: true,
                 userForm: {
                     username: "",
                     password: ""
                 },
-                user: {
-                    username: "",
-                    privilege: ""
-                }
             }
         },
         computed: {
+            user() {
+                return this.auth.user
+            },
+            isLogin() {
+                return this.auth.isLogin
+            },
             loginMessage() {
                 return "你好，" + this.user.username + "（" + this.user.privilege + "）！";
             }
         },
         mounted() {
-            this.checkStatus()
+            if(this.isLogin) {
+                this.onLogin()
+            }
+        },
+        watch: {
+            isLogin(newV, oldV) {
+                if (newV && !oldV) {
+                    this.onLogin()
+                } else if(!newV && oldV) {
+                    this.onLogout()
+                }
+            }
         },
         methods: {
+            onLogin() {
+                $("#msg-warning").hide(10);
+                $("#msg-error").hide(10);
+                $("#msg-success").hide(10).show(100);
+            },
+            onLogout() {
+                $("#msg-success").hide(10);
+            },
             dismissAlert() {
                 $("#msg-warning").hide(10);
                 $("#msg-error").hide(10);
@@ -129,32 +152,7 @@
                     });
             },
             checkStatus() {
-                let vm = this;
-                fetch(config.urlPrefix + '/auth?', {
-                    credentials: 'include'
-                })
-                    .then(res => {
-                        res.json().then(
-                            res => {
-                                if (res.result) {
-                                    this.user = res.data;
-                                    this.isLogin = true;
-                                    $("#msg-warning").hide(10);
-                                    $("#msg-error").hide(10);
-                                    $("#msg-success").hide(10).show(100);
-
-                                } else {
-                                    $("#msg-success").hide(10);
-                                    this.isLogin = false;
-                                }
-                            }
-                        )
-                    })
-                    .catch(error => {
-                        vm.error = "发生错误：" + res.msg;
-                        $("#msg-warning").hide(100);
-                        $("#msg-error").hide(10).show(100);
-                    });
+                this.$emit('check-auth')
             },
             logout() {
                 let vm = this;

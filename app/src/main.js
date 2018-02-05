@@ -10,6 +10,7 @@ import Admin from './Admin.vue'
 import TreeView from "vue-json-tree-view"
 import LaravelVuePagination from 'laravel-vue-pagination'
 import './style.css'
+import config from './config'
 
 Vue.use(TreeView);
 Vue.use(VueRouter);
@@ -33,10 +34,41 @@ new Vue({
     router,
     el: '#app',
     data: {
-        routes: routes
+        routes: routes,
+        auth: {
+            isLogin: false,
+            user: {
+                username: "",
+                privilege: ""
+            }
+        }
     },
     components: {
         'nav-section': Nav,
         'foot-section': Footer
     },
+    mounted() {
+        this.checkAuth()
+    },
+    methods: {
+        checkAuth() {
+            let vm = this;
+            fetch(config.urlPrefix + '/auth?', {
+                credentials: 'include'
+            })
+                .then(res => {
+                    res.json().then(
+                        res => {
+                            if (res.result) {
+                                vm.auth.user = res.data;
+                                vm.auth.isLogin = true;
+
+                            } else {
+                                vm.auth.isLogin = false;
+                            }
+                        }
+                    )
+                });
+        },
+    }
 });
