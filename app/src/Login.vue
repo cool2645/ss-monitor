@@ -49,7 +49,7 @@
                                         <label for="password" class="col-sm-3 control-label">密码</label>
 
                                         <div class="col-sm-9">
-                                            <input class="form-control" type="password" id="password" v-model="userForm.password">
+                                            <input class="form-control" type="password" id="password" @keypress.enter="login" v-model="userForm.password">
                                         </div>
                                     </div>
                                 </fieldset>
@@ -71,6 +71,9 @@
 <script>
     import config from './config'
     import urlParam from './buildUrlParam'
+    const privilege = {
+        "admin": "管理员"
+    };
     export default {
         props: [
             "auth"
@@ -93,7 +96,7 @@
                 return this.auth.isLogin
             },
             loginMessage() {
-                return "你好，" + this.user.username + "（" + this.user.privilege + "）！";
+                return "你好，" + this.user.username + "（" + privilege[this.user.privilege] + "）！";
             }
         },
         mounted() {
