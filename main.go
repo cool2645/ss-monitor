@@ -64,6 +64,7 @@ func main() {
 
 	mux.POST("/api/broadcast", httphandler.Broadcast)
 
+	mux.GET("/api/auth", httphandler.CheckAuth)
 	mux.POST("/api/auth", httphandler.Login)
 	mux.DELETE("/api/auth", httphandler.Logout)
 

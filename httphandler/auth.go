@@ -10,7 +10,7 @@ import (
 var globalSessions *session.Manager
 
 func InitSession()  {
-	globalSessions, _ = session.NewManager("memory", &session.ManagerConfig{CookieName: "SSMonitorSession", EnableSetCookie: true, Gclifetime: 3600})
+	globalSessions, _ = session.NewManager("memory", &session.ManagerConfig{CookieName: "SSMonitorSession", EnableSetCookie: true, Gclifetime: GlobCfg.SESSION_LIFETIME})
 	go globalSessions.GC()
 }
 
@@ -70,6 +70,31 @@ func auth(w http.ResponseWriter, req *http.Request) (result bool) {
 	}
 	result = true
 	return
+}
+
+func CheckAuth(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	sess, _ := globalSessions.SessionStart(w, req)
+	defer sess.SessionRelease(w)
+	if username := sess.Get("username"); username != nil {
+		privilege := sess.Get("privilege");
+		data := map[string]interface{}{
+			"username": username.(string),
+			"privilege": privilege.(string),
+		}
+		res := map[string]interface{}{
+			"code": http.StatusOK,
+			"result": true,
+			"data": data,
+		}
+		responseJson(w, res, http.StatusFound)
+	} else {
+		res := map[string]interface{}{
+			"code": http.StatusOK,
+			"result": false,
+			"msg": "Not logged in",
+		}
+		responseJson(w, res, http.StatusOK)
+	}
 }
 
 func Login(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {

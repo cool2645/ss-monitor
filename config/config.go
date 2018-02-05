@@ -15,6 +15,7 @@ type Config struct {
 	DB_PASS          string            `toml:"db_pass"`
 	DB_CHARSET       string            `toml:"db_charset"`
 	DB_COLLATION     string            `toml:"db_collation"`
+	SESSION_LIFETIME int64             `toml:"session_lifetime"`
 	ADMIN            []Admin           `toml:"admin"`
 	FRIENDLY_NAME    map[string]string `toml:"friendly"`
 }
