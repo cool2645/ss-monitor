@@ -92,7 +92,7 @@ func CheckAuth(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			"result": true,
 			"data": data,
 		}
-		responseJson(w, res, http.StatusFound)
+		responseJson(w, res, http.StatusOK)
 	} else {
 		res := map[string]interface{}{
 			"code": http.StatusOK,
