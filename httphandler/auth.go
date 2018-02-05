@@ -10,7 +10,13 @@ import (
 var globalSessions *session.Manager
 
 func InitSession()  {
-	globalSessions, _ = session.NewManager("memory", &session.ManagerConfig{CookieName: "SSMonitorSession", EnableSetCookie: true, Gclifetime: GlobCfg.SESSION_LIFETIME})
+	globalSessions, _ = session.NewManager("memory", &session.ManagerConfig{
+		CookieName: "SSMonitorSession",
+		EnableSetCookie: true,
+		Gclifetime: 3600,
+		Maxlifetime: GlobCfg.SESSION_LIFETIME,
+		CookieLifeTime: int(GlobCfg.SESSION_LIFETIME),
+		})
 	go globalSessions.GC()
 }
 

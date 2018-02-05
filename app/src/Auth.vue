@@ -1,14 +1,8 @@
 <template>
     <!-- Main content -->
-    <section class="content">
+    <div>
         <div class="row">
             <div class="col-md-12">
-                <div id="msg-success" class="alert alert-success alert-dismissable" style="display: none;">
-                    <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
-                    <h4><i class="icon fa fa-info"></i> 成功!</h4>
-
-                    <p id="msg-success-p"></p>
-                </div>
                 <div id="msg-warning" class="alert alert-warning alert-dismissable" style="display: none;">
                     <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
                     <h4><i class="icon fa fa-warning"></i> 出错了!</h4>
@@ -24,6 +18,17 @@
             </div>
         </div>
         <div class="row">
+            <div class="col-md-12">
+                <div id="msg-success" class="alert alert-success" style="display: none;">
+                    <h4><i class="icon fa fa-info"></i> 登录成功，欢迎回来！</h4>
+
+                    <p id="msg-success-p">{{ loginMessage }}
+                        <a href="javascript:;" @click="logout">登出</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div v-if="!isLogin" class="row">
             <!-- left column -->
             <div class="col-md-6">
                 <!-- general form elements -->
@@ -37,14 +42,14 @@
                                         <label for="username" class="col-sm-3 control-label">用户名</label>
 
                                         <div class="col-sm-9">
-                                            <input class="form-control" id="username">
+                                            <input class="form-control" id="username" v-model="userForm.username">
                                         </div>
                                     </div>
                                     <div class="form-group">
                                         <label for="password" class="col-sm-3 control-label">密码</label>
 
                                         <div class="col-sm-9">
-                                            <input class="form-control" id="password">
+                                            <input class="form-control" type="password" id="password" v-model="userForm.password">
                                         </div>
                                     </div>
                                 </fieldset>
@@ -53,31 +58,131 @@
                     </div>
                     <!-- /.box-body -->
                     <div class="box-footer">
-                        <button @click="" class="btn btn-primary">登录</button>
+                        <button @click="login" class="btn btn-primary">登录</button>
                     </div>
                 </div>
                 <!-- /.box -->
             </div>
         </div>
         <!-- /.row -->
-    </section>
-    <!-- /.content -->
+    </div>
 </template>
 
 <script>
+    import config from './config'
+    import urlParam from './buildUrlParam'
     export default {
         data() {
             return {
                 warning: "",
                 error: "",
+                isLogin: true,
+                userForm: {
+                    username: "",
+                    password: ""
+                },
+                user: {
+                    username: "",
+                    privilege: ""
+                }
             }
+        },
+        computed: {
+            loginMessage() {
+                return "你好，" + this.user.username + "（" + this.user.privilege + "）！";
+            }
+        },
+        mounted() {
+            this.checkStatus()
         },
         methods: {
             dismissAlert() {
-                $("#msg-success").hide(10);
                 $("#msg-warning").hide(10);
                 $("#msg-error").hide(10);
             },
+            login() {
+                let vm = this;
+                fetch(config.urlPrefix + '/auth?', {
+                    credentials: 'include',
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: urlParam(this.userForm)
+                })
+                    .then(res => {
+                        res.json().then(
+                            res => {
+                                vm.userForm.password = "";
+                                if (res.result) {
+                                    this.checkStatus();
+                                } else {
+                                    vm.warning = "登录失败：" + res.msg;
+                                    $("#msg-error").hide(100);
+                                    $("#msg-warning").hide(10).show(100);
+                                }
+                            }
+                        )
+                    })
+                    .catch(error => {
+                        vm.error = "发生错误：" + res.msg;
+                        $("#msg-warning").hide(100);
+                        $("#msg-error").hide(10).show(100);
+                    });
+            },
+            checkStatus() {
+                let vm = this;
+                fetch(config.urlPrefix + '/auth?', {
+                    credentials: 'include'
+                })
+                    .then(res => {
+                        res.json().then(
+                            res => {
+                                if (res.result) {
+                                    this.user = res.data;
+                                    this.isLogin = true;
+                                    $("#msg-warning").hide(10);
+                                    $("#msg-error").hide(10);
+                                    $("#msg-success").hide(10).show(100);
+
+                                } else {
+                                    $("#msg-success").hide(10);
+                                    this.isLogin = false;
+                                }
+                            }
+                        )
+                    })
+                    .catch(error => {
+                        vm.error = "发生错误：" + res.msg;
+                        $("#msg-warning").hide(100);
+                        $("#msg-error").hide(10).show(100);
+                    });
+            },
+            logout() {
+                let vm = this;
+                fetch(config.urlPrefix + '/auth?', {
+                    credentials: 'include',
+                    method: "DELETE",
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: urlParam(this.userForm)
+                })
+                    .then(res => {
+                        res.json().then(
+                            res => {
+                                if (res.result) {
+                                    this.checkStatus();
+                                } else {
+                                    vm.warning = "登出失败：" + res.msg;
+                                    $("#msg-error").hide(100);
+                                    $("#msg-warning").hide(10).show(100);
+                                }
+                            }
+                        )
+                    })
+                    .catch(error => {
+                        vm.error = "发生错误：" + res.msg;
+                        $("#msg-warning").hide(100);
+                        $("#msg-error").hide(10).show(100);
+                    });
+            }
         }
     }
 </script>

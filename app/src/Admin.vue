@@ -6,8 +6,8 @@
                 <small>Admin</small>
             </h1>
         </section>
-        <auth></auth>
         <section class="content">
+            <auth></auth>
             <div class="row">
                 <node :editing="true"></node>
                 <node :editing="false"></node>
