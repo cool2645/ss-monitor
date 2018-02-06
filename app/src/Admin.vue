@@ -23,10 +23,11 @@
                     </div>
                 </div>
             </div>
-            <login :auth="auth" @check-auth="checkAuth"></login>
+            <login :auth="auth" @check-auth="checkAuth" @dismiss-alert="dismissAlert" @show-warning="showWarning" @show-error="showError"></login>
             <div v-if="isAdmin" class="row">
-                <node v-for="node in nodes" :node="node"></node>
+                <node v-for="(node, index) in nodes" :new="!node.ID" :key="index" :node="node" @delete-node="deleteNode" @check-auth="checkAuth" @show-warning="showWarning" @show-error="showError"></node>
             </div>
+            <button v-if="isAdmin" @click="newNode" class="btn btn-primary">新增节点</button>
         </section>
     </div>
 </template>
@@ -71,6 +72,16 @@
                 $("#msg-warning").hide(10);
                 $("#msg-error").hide(10);
             },
+            showWarning(msg) {
+                this.dismissAlert();
+                this.warning = msg;
+                $("#msg-warning").show(100);
+            },
+            showError(msg) {
+                this.dismissAlert();
+                this.error = msg;
+                $("#msg-error").show(100);
+            },
             checkAuth() {
                 this.$emit('check-auth')
             },
@@ -88,6 +99,12 @@
                             }
                         )
                     });
+            },
+            deleteNode(index) {
+                this.nodes.splice(index, 1);
+            },
+            newNode() {
+                this.nodes.push({});
             }
         }
     }

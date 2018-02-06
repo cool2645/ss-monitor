@@ -3,22 +3,6 @@
     <div>
         <div class="row">
             <div class="col-md-12">
-                <div id="msg-warning" class="alert alert-warning alert-dismissable" style="display: none;">
-                    <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
-                    <h4><i class="icon fa fa-warning"></i> 出错了!</h4>
-
-                    <p id="msg-warning-p">{{ warning }}</p>
-                </div>
-                <div id="msg-error" class="alert alert-danger alert-dismissable" style="display: none;">
-                    <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
-                    <h4><i class="icon fa fa-warning"></i> 出错了!</h4>
-
-                    <p id="msg-error-p">{{ error }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12">
                 <div id="msg-success" class="alert alert-success" style="display: none;">
                     <h4><i class="icon fa fa-info"></i> 登录成功，欢迎回来！</h4>
 
@@ -115,16 +99,11 @@
         },
         methods: {
             onLogin() {
-                $("#msg-warning").hide(10);
-                $("#msg-error").hide(10);
+                this.$emit('dismiss-alert');
                 $("#msg-success").hide(10).show(100);
             },
             onLogout() {
                 $("#msg-success").hide(10);
-            },
-            dismissAlert() {
-                $("#msg-warning").hide(10);
-                $("#msg-error").hide(10);
             },
             login() {
                 let vm = this;
@@ -141,29 +120,23 @@
                                 if (res.result) {
                                     this.checkStatus();
                                 } else {
-                                    vm.warning = "登录失败：" + res.msg;
-                                    $("#msg-error").hide(100);
-                                    $("#msg-warning").hide(10).show(100);
+                                    this.$emit('show-warning', "登录失败：" + res.msg);
                                 }
                             }
                         )
                     })
                     .catch(error => {
-                        vm.error = "发生错误：" + res.msg;
-                        $("#msg-warning").hide(100);
-                        $("#msg-error").hide(10).show(100);
+                        this.$emit('show-error', "发生错误：" + res.msg);
                     });
             },
             checkStatus() {
                 this.$emit('check-auth')
             },
             logout() {
-                let vm = this;
                 fetch(config.urlPrefix + '/auth?', {
                     credentials: 'include',
                     method: "DELETE",
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: urlParam(this.userForm)
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
                 })
                     .then(res => {
                         res.json().then(
@@ -171,17 +144,13 @@
                                 if (res.result) {
                                     this.checkStatus();
                                 } else {
-                                    vm.warning = "登出失败：" + res.msg;
-                                    $("#msg-error").hide(100);
-                                    $("#msg-warning").hide(10).show(100);
+                                    this.$emit('show-warning', "登出失败：" + res.msg);
                                 }
                             }
                         )
                     })
                     .catch(error => {
-                        vm.error = "发生错误：" + res.msg;
-                        $("#msg-warning").hide(100);
-                        $("#msg-error").hide(10).show(100);
+                        this.$emit('show-error', "发生错误：" + res.msg);
                     });
             }
         }
