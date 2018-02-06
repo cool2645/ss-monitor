@@ -7,66 +7,81 @@ import (
 	"github.com/yanzay/log"
 	"strconv"
 	"github.com/cool2645/ss-monitor/manager"
+	"encoding/json"
 )
 
 func NewNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if !authAdmin(w, req) {
 		return
 	}
-	req.ParseForm()
-	if len(req.Form["name"]) != 1 {
-		res := map[string]interface{}{
-			"code":   http.StatusBadRequest,
-			"result": false,
-			"msg":    "Invalid node name.",
-		}
-		responseJson(w, res, http.StatusBadRequest)
-		return
-	}
 	var node model.Node
-	node.Name = req.Form["name"][0]
-	if len(req.Form["ipv4"]) == 1 {
-		node.IPv4 = req.Form["ipv4"][0]
-	}
-	if len(req.Form["ipv6"]) == 1 {
-		node.IPv6 = req.Form["ipv6"][0]
-	}
-	if len(req.Form["ss4_json"]) == 1 {
-		node.Ss4Json = req.Form["ss4_json"][0]
-		node.EnableIPv4Testing = true
-	}
-	if len(req.Form["ss6_json"]) == 1 {
-		node.Ss6Json = req.Form["ss6_json"][0]
-		node.EnableIPv6Testing = true
-	}
-	if len(req.Form["domain_prefix4"]) == 1 {
-		node.DomainPrefix4 = req.Form["domain_prefix4"][0]
-	}
-	if len(req.Form["domain_prefix6"]) == 1 {
-		node.DomainPrefix6 = req.Form["domain_prefix6"][0]
-	}
-	if len(req.Form["domain_root"]) == 1 {
-		node.DomainRoot = req.Form["domain_root"][0]
-		node.EnableWatching = true
-	}
-	if len(req.Form["provider"]) == 1 {
-		node.Provider = req.Form["provider"][0]
-		node.EnableCleaning = true
-	}
-	if len(req.Form["dns_provider"]) == 1 {
-		node.DNSProvider = req.Form["dns_provider"][0]
-	}
-	if len(req.Form["os"]) == 1 {
-		node.OS = req.Form["os"][0]
-	}
-	if len(req.Form["image"]) == 1 {
-		node.Image = req.Form["image"][0]
-	}
-	if len(req.Form["data_center"]) == 1 {
-		node.DataCenter = req.Form["data_center"][0]
-	}
-	if len(req.Form["plan"]) == 1 {
-		node.Plan = req.Form["plan"][0]
+	if req.Header.Get("Content-Type") == "application/json" {
+		err := json.NewDecoder(req.Body).Decode(&node)
+		if err != nil {
+			log.Error(err)
+			res := map[string]interface{}{
+				"code":   http.StatusBadRequest,
+				"result": false,
+				"msg":    "Error occurred parsing json request.",
+			}
+			responseJson(w, res, http.StatusBadRequest)
+			return
+		}
+	} else {
+		req.ParseForm()
+		if len(req.Form["name"]) != 1 {
+			res := map[string]interface{}{
+				"code":   http.StatusBadRequest,
+				"result": false,
+				"msg":    "Invalid node name.",
+			}
+			responseJson(w, res, http.StatusBadRequest)
+			return
+		}
+		node.Name = req.Form["name"][0]
+		if len(req.Form["ipv4"]) == 1 {
+			node.IPv4 = req.Form["ipv4"][0]
+		}
+		if len(req.Form["ipv6"]) == 1 {
+			node.IPv6 = req.Form["ipv6"][0]
+		}
+		if len(req.Form["ss4_json"]) == 1 {
+			node.Ss4Json = req.Form["ss4_json"][0]
+			node.EnableIPv4Testing = true
+		}
+		if len(req.Form["ss6_json"]) == 1 {
+			node.Ss6Json = req.Form["ss6_json"][0]
+			node.EnableIPv6Testing = true
+		}
+		if len(req.Form["domain_prefix4"]) == 1 {
+			node.DomainPrefix4 = req.Form["domain_prefix4"][0]
+		}
+		if len(req.Form["domain_prefix6"]) == 1 {
+			node.DomainPrefix6 = req.Form["domain_prefix6"][0]
+		}
+		if len(req.Form["domain_root"]) == 1 {
+			node.DomainRoot = req.Form["domain_root"][0]
+			node.EnableWatching = true
+		}
+		if len(req.Form["provider"]) == 1 {
+			node.Provider = req.Form["provider"][0]
+			node.EnableCleaning = true
+		}
+		if len(req.Form["dns_provider"]) == 1 {
+			node.DNSProvider = req.Form["dns_provider"][0]
+		}
+		if len(req.Form["os"]) == 1 {
+			node.OS = req.Form["os"][0]
+		}
+		if len(req.Form["image"]) == 1 {
+			node.Image = req.Form["image"][0]
+		}
+		if len(req.Form["data_center"]) == 1 {
+			node.DataCenter = req.Form["data_center"][0]
+		}
+		if len(req.Form["plan"]) == 1 {
+			node.Plan = req.Form["plan"][0]
+		}
 	}
 	node, err := model.CreateNode(model.Db, node)
 	if err != nil {
@@ -92,67 +107,77 @@ func EditNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if !auth(w, req) {
 		return
 	}
-	req.ParseForm()
 	var node model.Node
-	nodeID64, err := strconv.ParseUint(ps.ByName("id"), 10, 32)
-	if err != nil {
-		log.Error(err)
-		res := map[string]interface{}{
-			"code":   http.StatusBadRequest,
-			"result": false,
-			"msg":    "Error occurred parsing node id.",
+	if req.Header.Get("Content-Type") == "application/json" {
+		err := json.NewDecoder(req.Body).Decode(&node)
+		if err != nil {
+			log.Error(err)
+			res := map[string]interface{}{
+				"code":   http.StatusBadRequest,
+				"result": false,
+				"msg":    "Error occurred parsing json request.",
+			}
+			responseJson(w, res, http.StatusBadRequest)
+			return
 		}
-		responseJson(w, res, http.StatusBadRequest)
-		return
+	} else {
+		req.ParseForm()
+		nodeID64, err := strconv.ParseUint(ps.ByName("id"), 10, 32)
+		if err != nil {
+			log.Error(err)
+			res := map[string]interface{}{
+				"code":   http.StatusBadRequest,
+				"result": false,
+				"msg":    "Error occurred parsing node id.",
+			}
+			responseJson(w, res, http.StatusBadRequest)
+			return
+		}
+		node.ID = uint(nodeID64)
+		if len(req.Form["name"]) == 1 {
+			node.Name = req.Form["name"][0]
+		}
+		if len(req.Form["ipv4"]) == 1 {
+			node.IPv4 = req.Form["ipv4"][0]
+		}
+		if len(req.Form["ipv6"]) == 1 {
+			node.IPv6 = req.Form["ipv6"][0]
+		}
+		if len(req.Form["ss4_json"]) == 1 {
+			node.Ss4Json = req.Form["ss4_json"][0]
+		}
+		if len(req.Form["ss6_json"]) == 1 {
+			node.Ss6Json = req.Form["ss6_json"][0]
+		}
+		if len(req.Form["domain_prefix4"]) == 1 {
+			node.DomainPrefix4 = req.Form["domain_prefix4"][0]
+		}
+		if len(req.Form["domain_prefix6"]) == 1 {
+			node.DomainPrefix6 = req.Form["domain_prefix6"][0]
+		}
+		if len(req.Form["domain_root"]) == 1 {
+			node.DomainRoot = req.Form["domain_root"][0]
+		}
+		if len(req.Form["provider"]) == 1 {
+			node.Provider = req.Form["provider"][0]
+		}
+		if len(req.Form["dns_provider"]) == 1 {
+			node.DNSProvider = req.Form["dns_provider"][0]
+		}
+		if len(req.Form["os"]) == 1 {
+			node.OS = req.Form["os"][0]
+		}
+		if len(req.Form["image"]) == 1 {
+			node.Image = req.Form["image"][0]
+		}
+		if len(req.Form["data_center"]) == 1 {
+			node.DataCenter = req.Form["data_center"][0]
+		}
+		if len(req.Form["plan"]) == 1 {
+			node.Plan = req.Form["plan"][0]
+		}
 	}
-	node.ID = uint(nodeID64)
-	if len(req.Form["name"]) == 1 {
-		node.Name = req.Form["name"][0]
-	}
-	if len(req.Form["ipv4"]) == 1 {
-		node.IPv4 = req.Form["ipv4"][0]
-	}
-	if len(req.Form["ipv6"]) == 1 {
-		node.IPv6 = req.Form["ipv6"][0]
-	}
-	if len(req.Form["ss4_json"]) == 1 {
-		node.Ss4Json = req.Form["ss4_json"][0]
-		node.EnableIPv4Testing = true
-	}
-	if len(req.Form["ss6_json"]) == 1 {
-		node.Ss6Json = req.Form["ss6_json"][0]
-		node.EnableIPv6Testing = true
-	}
-	if len(req.Form["domain_prefix4"]) == 1 {
-		node.DomainPrefix4 = req.Form["domain_prefix4"][0]
-	}
-	if len(req.Form["domain_prefix6"]) == 1 {
-		node.DomainPrefix6 = req.Form["domain_prefix6"][0]
-	}
-	if len(req.Form["domain_root"]) == 1 {
-		node.DomainRoot = req.Form["domain_root"][0]
-		node.EnableWatching = true
-	}
-	if len(req.Form["provider"]) == 1 {
-		node.Provider = req.Form["provider"][0]
-		node.EnableCleaning = true
-	}
-	if len(req.Form["dns_provider"]) == 1 {
-		node.DNSProvider = req.Form["dns_provider"][0]
-	}
-	if len(req.Form["os"]) == 1 {
-		node.OS = req.Form["os"][0]
-	}
-	if len(req.Form["image"]) == 1 {
-		node.Image = req.Form["image"][0]
-	}
-	if len(req.Form["data_center"]) == 1 {
-		node.DataCenter = req.Form["data_center"][0]
-	}
-	if len(req.Form["plan"]) == 1 {
-		node.Plan = req.Form["plan"][0]
-	}
-	node, err = model.UpdateNode(model.Db, node)
+	node, err := model.UpdateNode(model.Db, node)
 	if err != nil {
 		log.Error(err)
 		if err.Error() == "UpdateNode: record not found" {

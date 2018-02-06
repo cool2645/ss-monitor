@@ -7,6 +7,7 @@ import (
 	logging "github.com/yanzay/log"
 	"github.com/cool2645/ss-monitor/model"
 	"github.com/cool2645/ss-monitor/manager"
+	"encoding/json"
 )
 
 func GetTasks(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
@@ -180,85 +181,102 @@ func GetTaskLog(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 }
 
 func NewTask(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	req.ParseForm()
-	if len(req.Form["class"]) != 1 {
-		res := map[string]interface{}{
-			"code":   http.StatusBadRequest,
-			"result": false,
-			"msg":    "Invalid worker class.",
-		}
-		responseJson(w, res, http.StatusBadRequest)
-		return
-	}
-	class := req.Form["class"][0]
-	var callbackID, nodeID, ipVer uint = 0, 0, 4
-	if len(req.Form["callback_id"]) == 1 {
-		callbackID64, err := strconv.ParseUint(req.Form["callback_id"][0], 10, 32)
-		if err != nil {
-			logging.Error(err)
-			res := map[string]interface{}{
-				"code":   http.StatusBadRequest,
-				"result": false,
-				"msg":    "Error occurred parsing callback id.",
-			}
-			responseJson(w, res, http.StatusBadRequest)
-			return
-		}
-		callbackID = uint(callbackID64)
-	}
-	if len(req.Form["node_id"]) == 1 {
-		nodeID64, err := strconv.ParseUint(req.Form["node_id"][0], 10, 32)
-		if err != nil {
-			logging.Error(err)
-			res := map[string]interface{}{
-				"code":   http.StatusBadRequest,
-				"result": false,
-				"msg":    "Error occurred parsing node id.",
-			}
-			responseJson(w, res, http.StatusBadRequest)
-			return
-		}
-		nodeID = uint(nodeID64)
-	}
-	var serverName, ssJson string
-	if nodeID == 0 {
-		if len(req.Form["server_name"]) != 1 {
-			res := map[string]interface{}{
-				"code":   http.StatusBadRequest,
-				"result": false,
-				"msg":    "Invalid server name.",
-			}
-			responseJson(w, res, http.StatusBadRequest)
-			return
-		}
-		serverName = req.Form["server_name"][0]
-		if len(req.Form["ss_json"]) == 1 {
-			ssJson = req.Form["ss_json"][0]
-		}
-	} else if !authAdmin(w, req) {
-		return
-	}
-	if len(req.Form["ip_ver"]) == 1 {
-		ipVer64, err := strconv.ParseUint(req.Form["ip_ver"][0], 10, 32)
-		if err != nil {
-			logging.Error(err)
-			res := map[string]interface{}{
-				"code":   http.StatusBadRequest,
-				"result": false,
-				"msg":    "Error occurred parsing ip version.",
-			}
-			responseJson(w, res, http.StatusBadRequest)
-			return
-		}
-		ipVer = uint(ipVer64)
-	}
 	var task model.Task
-	task.Class = class
-	task.CallbackID = callbackID
-	task.NodeID = nodeID
-	task.IPVer = ipVer
-	task.ServerName = serverName
-	task.SsJson = ssJson
+	if req.Header.Get("Content-Type") == "application/json" {
+		err := json.NewDecoder(req.Body).Decode(&task)
+		if err != nil {
+			logging.Error(err)
+			res := map[string]interface{}{
+				"code":   http.StatusBadRequest,
+				"result": false,
+				"msg":    "Error occurred parsing json request.",
+			}
+			responseJson(w, res, http.StatusBadRequest)
+			return
+		}
+		if task.NodeID != 0 && !authAdmin(w, req) {
+			return
+		}
+	} else {
+		req.ParseForm()
+		if len(req.Form["class"]) != 1 {
+			res := map[string]interface{}{
+				"code":   http.StatusBadRequest,
+				"result": false,
+				"msg":    "Invalid worker class.",
+			}
+			responseJson(w, res, http.StatusBadRequest)
+			return
+		}
+		class := req.Form["class"][0]
+		var callbackID, nodeID, ipVer uint = 0, 0, 4
+		if len(req.Form["callback_id"]) == 1 {
+			callbackID64, err := strconv.ParseUint(req.Form["callback_id"][0], 10, 32)
+			if err != nil {
+				logging.Error(err)
+				res := map[string]interface{}{
+					"code":   http.StatusBadRequest,
+					"result": false,
+					"msg":    "Error occurred parsing callback id.",
+				}
+				responseJson(w, res, http.StatusBadRequest)
+				return
+			}
+			callbackID = uint(callbackID64)
+		}
+		if len(req.Form["node_id"]) == 1 {
+			nodeID64, err := strconv.ParseUint(req.Form["node_id"][0], 10, 32)
+			if err != nil {
+				logging.Error(err)
+				res := map[string]interface{}{
+					"code":   http.StatusBadRequest,
+					"result": false,
+					"msg":    "Error occurred parsing node id.",
+				}
+				responseJson(w, res, http.StatusBadRequest)
+				return
+			}
+			nodeID = uint(nodeID64)
+		}
+		var serverName, ssJson string
+		if nodeID == 0 {
+			if len(req.Form["server_name"]) != 1 {
+				res := map[string]interface{}{
+					"code":   http.StatusBadRequest,
+					"result": false,
+					"msg":    "Invalid server name.",
+				}
+				responseJson(w, res, http.StatusBadRequest)
+				return
+			}
+			serverName = req.Form["server_name"][0]
+			if len(req.Form["ss_json"]) == 1 {
+				ssJson = req.Form["ss_json"][0]
+			}
+		} else if !authAdmin(w, req) {
+			return
+		}
+		if len(req.Form["ip_ver"]) == 1 {
+			ipVer64, err := strconv.ParseUint(req.Form["ip_ver"][0], 10, 32)
+			if err != nil {
+				logging.Error(err)
+				res := map[string]interface{}{
+					"code":   http.StatusBadRequest,
+					"result": false,
+					"msg":    "Error occurred parsing ip version.",
+				}
+				responseJson(w, res, http.StatusBadRequest)
+				return
+			}
+			ipVer = uint(ipVer64)
+		}
+		task.Class = class
+		task.CallbackID = callbackID
+		task.NodeID = nodeID
+		task.IPVer = ipVer
+		task.ServerName = serverName
+		task.SsJson = ssJson
+	}
 	task, err := model.CreateTask(model.Db, task)
 	if err != nil {
 		logging.Error(err)
