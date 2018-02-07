@@ -72,9 +72,8 @@ func main() {
 	mux.GET("/api/node/:id", httphandler.GetNode)
 	mux.POST("/api/node", httphandler.NewNode)
 	mux.PUT("/api/node/:id", httphandler.EditNode)
-	mux.PUT("/api/node/:id/enable/:name", httphandler.SetNodeTaskEnable)
-	mux.DELETE("/api/node/:id/enable/:name", httphandler.SetNodeTaskDisable)
 	mux.DELETE("/api/node/:id", httphandler.DeleteNode)
+	mux.POST("/api/node/:id/status/isCleaning", httphandler.SetNodeCleaning)
 	mux.DELETE("/api/node/:id/status/isCleaning", httphandler.ResetNode)
 
 	//mux.ServeFiles("/static/*filepath", http.Dir("static"))

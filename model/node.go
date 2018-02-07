@@ -63,7 +63,7 @@ func CreateNode(db *gorm.DB, node Node) (newNode Node, err error) {
 	return
 }
 
-func UpdateNode(db *gorm.DB, node Node) (newNode Node, err error) {
+func UpdateNodeChangedFields(db *gorm.DB, node Node) (newNode Node, err error) {
 	err = db.Model(&node).Updates(node).Error
 	if err != nil {
 		err = errors.Wrap(err, "UpdateNode")
@@ -73,58 +73,26 @@ func UpdateNode(db *gorm.DB, node Node) (newNode Node, err error) {
 	return
 }
 
-func UpdateNodeSetEnable(db *gorm.DB, id uint, task string) (err error) {
-	var node Node
-	err = db.Where("id = ?", id).Find(&node).Error
+func UpdateNodeAllFields(db *gorm.DB, node Node) (newNode Node, err error) {
+	err = db.Save(&node).Error
 	if err != nil {
-		err = errors.Wrap(err, "UpdateNodeSetEnable: Find node")
+		err = errors.Wrap(err, "UpdateNodeAllFields")
 		return
 	}
-	switch task {
-	case "watching":
-		node.EnableWatching = true
-	case "ipv4testing":
-		node.EnableIPv4Testing = true
-	case "ipv6testing":
-		node.EnableIPv6Testing = true
-	case "cleaning":
-		node.EnableCleaning = true
-	default:
-		err = errors.New("Unknown task type")
-		err = errors.Wrap(err, "UpdateNodeSetEnable")
-		return
-	}
-	err = db.Model(&node).Updates(node).Error
-	if err != nil {
-		err = errors.Wrap(err, "UpdateNodeSetEnable: Update node")
-		return
-	}
+	newNode = node
 	return
 }
 
-func UpdateNodeSetDisable(db *gorm.DB, id uint, task string) (err error) {
+func UpdateNodeFields(db *gorm.DB, id uint, fields map[string]interface{}) (err error) {
 	var node Node
 	err = db.Where("id = ?", id).Find(&node).Error
 	if err != nil {
-		err = errors.Wrap(err, "UpdateNodeSetDisable: Find node")
+		err = errors.Wrap(err, "UpdateNodeFields: Find node")
 		return
 	}
-	switch task {
-	case "watching":
-		err = db.Model(&node).Update("enable_watching", false).Error
-	case "ipv4testing":
-		err = db.Model(&node).Update("enable_ipv4_testing", false).Error
-	case "ipv6testing":
-		err = db.Model(&node).Update("enable_ipv6_testing", false).Error
-	case "cleaning":
-		err = db.Model(&node).Update("cleaning", false).Error
-	default:
-		err = errors.New("Unknown task type")
-		err = errors.Wrap(err, "UpdateNodeSetDisable")
-		return
-	}
+	err = db.Model(&node).Updates(fields).Error
 	if err != nil {
-		err = errors.Wrap(err, "UpdateNodeSetDisable: Update node")
+		err = errors.Wrap(err, "UpdateNodeFields: Update node")
 		return
 	}
 	return

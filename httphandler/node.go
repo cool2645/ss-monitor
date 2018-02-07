@@ -120,6 +120,26 @@ func EditNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			responseJson(w, res, http.StatusBadRequest)
 			return
 		}
+		node, err = model.UpdateNodeAllFields(model.Db, node)
+		if err != nil {
+			log.Error(err)
+			if err.Error() == "UpdateNodeAllFields: record not found" {
+				res := map[string]interface{}{
+					"code":   http.StatusNotFound,
+					"result": false,
+					"msg":    "Error occurred updating node: " + err.Error(),
+				}
+				responseJson(w, res, http.StatusNotFound)
+				return
+			}
+			res := map[string]interface{}{
+				"code":   http.StatusInternalServerError,
+				"result": false,
+				"msg":    "Error occurred updating node: " + err.Error(),
+			}
+			responseJson(w, res, http.StatusInternalServerError)
+			return
+		}
 	} else {
 		req.ParseForm()
 		nodeID64, err := strconv.ParseUint(ps.ByName("id"), 10, 32)
@@ -176,26 +196,105 @@ func EditNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		if len(req.Form["plan"]) == 1 {
 			node.Plan = req.Form["plan"][0]
 		}
-	}
-	node, err := model.UpdateNode(model.Db, node)
-	if err != nil {
-		log.Error(err)
-		if err.Error() == "UpdateNode: record not found" {
+		var fields = make(map[string]interface{})
+		if len(req.Form["enable_watching"]) == 1 {
+			node.EnableWatching, err = strconv.ParseBool(req.Form["enable_watching"][0])
+			fields["EnableWatching"] = node.EnableWatching
+			if err != nil {
+				log.Error(err)
+				res := map[string]interface{}{
+					"code":   http.StatusBadRequest,
+					"result": false,
+					"msg":    "Error occurred parsing enable watching.",
+				}
+				responseJson(w, res, http.StatusBadRequest)
+				return
+			}
+		}
+		if len(req.Form["enable_ipv4_testing"]) == 1 {
+			node.EnableIPv4Testing, err = strconv.ParseBool(req.Form["enable_ipv4_testing"][0])
+			fields["EnableIPv4Testing"] = node.EnableIPv4Testing
+			if err != nil {
+				log.Error(err)
+				res := map[string]interface{}{
+					"code":   http.StatusBadRequest,
+					"result": false,
+					"msg":    "Error occurred parsing enable ipv4 testing.",
+				}
+				responseJson(w, res, http.StatusBadRequest)
+				return
+			}
+		}
+		if len(req.Form["enable_ipv6_testing"]) == 1 {
+			node.EnableIPv6Testing, err = strconv.ParseBool(req.Form["enable_ipv6_testing"][0])
+			fields["EnableIPv6Testing"] = node.EnableIPv6Testing
+			if err != nil {
+				log.Error(err)
+				res := map[string]interface{}{
+					"code":   http.StatusBadRequest,
+					"result": false,
+					"msg":    "Error occurred parsing enable ipv4 testing.",
+				}
+				responseJson(w, res, http.StatusBadRequest)
+				return
+			}
+		}
+		if len(req.Form["enable_cleaning"]) == 1 {
+			node.EnableCleaning, err = strconv.ParseBool(req.Form["enable_cleaning"][0])
+			fields["EnableCleaning"] = node.EnableCleaning
+			if err != nil {
+				log.Error(err)
+				res := map[string]interface{}{
+					"code":   http.StatusBadRequest,
+					"result": false,
+					"msg":    "Error occurred parsing enable cleaning.",
+				}
+				responseJson(w, res, http.StatusBadRequest)
+				return
+			}
+		}
+		node, err = model.UpdateNodeChangedFields(model.Db, node)
+		if err != nil {
+			log.Error(err)
+			if err.Error() == "UpdateNode: record not found" {
+				res := map[string]interface{}{
+					"code":   http.StatusNotFound,
+					"result": false,
+					"msg":    "Error occurred updating node: " + err.Error(),
+				}
+				responseJson(w, res, http.StatusNotFound)
+				return
+			}
 			res := map[string]interface{}{
-				"code":   http.StatusNotFound,
+				"code":   http.StatusInternalServerError,
 				"result": false,
 				"msg":    "Error occurred updating node: " + err.Error(),
 			}
-			responseJson(w, res, http.StatusNotFound)
+			responseJson(w, res, http.StatusInternalServerError)
 			return
 		}
-		res := map[string]interface{}{
-			"code":   http.StatusInternalServerError,
-			"result": false,
-			"msg":    "Error occurred updating node: " + err.Error(),
+		if len(fields) > 0 {
+			err = model.UpdateNodeFields(model.Db, node.ID, fields)
+			if err != nil {
+				log.Error(err)
+				if err.Error() == "UpdateNodeFields: Find node: record not found" {
+					res := map[string]interface{}{
+						"code":   http.StatusNotFound,
+						"result": false,
+						"msg":    "Error occurred updating node control bit: " + err.Error(),
+					}
+					responseJson(w, res, http.StatusNotFound)
+					return
+				}
+				res := map[string]interface{}{
+					"code":   http.StatusInternalServerError,
+					"result": false,
+					"msg":    "Error occurred updating node control bit: " + err.Error(),
+				}
+				responseJson(w, res, http.StatusInternalServerError)
+				return
+			}
 		}
-		responseJson(w, res, http.StatusInternalServerError)
-		return
 	}
 	res := map[string]interface{}{
 		"code":   http.StatusOK,
@@ -206,11 +305,10 @@ func EditNode(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	manager.InitNodes()
 }
 
-func SetNodeTaskEnable(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func SetNodeCleaning(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if !authAdmin(w, req) {
 		return
 	}
-	req.ParseForm()
 	nodeID64, err := strconv.ParseUint(ps.ByName("id"), 10, 32)
 	if err != nil {
 		log.Error(err)
@@ -222,89 +320,23 @@ func SetNodeTaskEnable(w http.ResponseWriter, req *http.Request, ps httprouter.P
 		responseJson(w, res, http.StatusBadRequest)
 		return
 	}
-	id := uint(nodeID64)
-	var name = ps.ByName("name")
-	err = model.UpdateNodeSetEnable(model.Db, id, name)
+	nodeID := uint(nodeID64)
+	err = model.SetNodeCleaning(model.Db, nodeID)
 	if err != nil {
 		log.Error(err)
-		if err.Error() == "UpdateNodeSetEnable: Find node: record not found" {
+		if err.Error() == "SetNodeCleaning: Find node: record not found" {
 			res := map[string]interface{}{
 				"code":   http.StatusNotFound,
 				"result": false,
-				"msg":    "Error occurred updating node: " + err.Error(),
+				"msg":    "Error occurred setting node cleaning: " + err.Error(),
 			}
 			responseJson(w, res, http.StatusNotFound)
-			return
-		}
-		if err.Error() == "UpdateNodeSetEnable: Unknown task type" {
-			res := map[string]interface{}{
-				"code":   http.StatusBadRequest,
-				"result": false,
-				"msg":    "Error occurred updating node: " + err.Error(),
-			}
-			responseJson(w, res, http.StatusBadRequest)
 			return
 		}
 		res := map[string]interface{}{
 			"code":   http.StatusInternalServerError,
 			"result": false,
-			"msg":    "Error occurred updating node: " + err.Error(),
-		}
-		responseJson(w, res, http.StatusInternalServerError)
-		return
-	}
-	res := map[string]interface{}{
-		"code":   http.StatusOK,
-		"result": true,
-		"msg":    "success",
-	}
-	responseJson(w, res, http.StatusOK)
-	manager.InitNodes()
-}
-
-func SetNodeTaskDisable(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	if !authAdmin(w, req) {
-		return
-	}
-	req.ParseForm()
-	nodeID64, err := strconv.ParseUint(ps.ByName("id"), 10, 32)
-	if err != nil {
-		log.Error(err)
-		res := map[string]interface{}{
-			"code":   http.StatusBadRequest,
-			"result": false,
-			"msg":    "Error occurred parsing node id.",
-		}
-		responseJson(w, res, http.StatusBadRequest)
-		return
-	}
-	id := uint(nodeID64)
-	var name = ps.ByName("name")
-	err = model.UpdateNodeSetDisable(model.Db, id, name)
-	if err != nil {
-		log.Error(err)
-		if err.Error() == "UpdateNodeSetDisable: Find node: record not found" {
-			res := map[string]interface{}{
-				"code":   http.StatusNotFound,
-				"result": false,
-				"msg":    "Error occurred updating node: " + err.Error(),
-			}
-			responseJson(w, res, http.StatusNotFound)
-			return
-		}
-		if err.Error() == "UpdateNodeSetDisable: Unknown task type" {
-			res := map[string]interface{}{
-				"code":   http.StatusBadRequest,
-				"result": false,
-				"msg":    "Error occurred updating node: " + err.Error(),
-			}
-			responseJson(w, res, http.StatusBadRequest)
-			return
-		}
-		res := map[string]interface{}{
-			"code":   http.StatusInternalServerError,
-			"result": false,
-			"msg":    "Error occurred updating node: " + err.Error(),
+			"msg":    "Error occurred setting node cleaning: " + err.Error(),
 		}
 		responseJson(w, res, http.StatusInternalServerError)
 		return
