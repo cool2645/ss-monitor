@@ -10,7 +10,8 @@
                         <a v-else @click="update" class="label label-info pull-right">保存</a>
                         <a v-if="!editing" @click="destroy" class="label label-danger pull-right">删除</a>
                         <a v-else @click="quit" class="label label-danger pull-right">放弃</a>
-                        <a v-if="node1.IsCleaning" @click="reset" class="label label-primary pull-right">重置</a>
+                        <a v-if="!isNew && node1.IsCleaning" @click="reset" class="label label-primary pull-right">重置</a>
+                        <a v-else-if="!isNew && !node1.IsCleaning" @click="setCleaning" class="label label-warning pull-right">置清洗</a>
                     </li><!-- /.item -->
                 </ul>
             </div>
@@ -268,6 +269,34 @@
                             res => {
                                 if (res.result) {
                                     vm.node1.IsCleaning = false;
+                                    vm.data = Object.assign({}, vm.node1);
+                                } else if (res.code === 401) {
+                                    this.$emit('show-warning', "登录超时：" + res.msg);
+                                    this.$emit('check-auth');
+                                } else {
+                                    this.$emit('show-warning', "发生错误：" + res.msg);
+                                }
+                            }
+                        )
+                    })
+                    .catch(error => {
+                        this.$emit('show-error', "发生错误：" + res.msg);
+                    });
+            },
+            setCleaning() {
+                let r = confirm("确定要置清洗状态吗？");
+                if (!r) return;
+                let vm = this;
+                fetch(config.urlPrefix + '/node/' + this.data.ID + "/status/isCleaning", {
+                    credentials: 'include',
+                    method: "POST",
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+                })
+                    .then(res => {
+                        res.json().then(
+                            res => {
+                                if (res.result) {
+                                    vm.node1.IsCleaning = true;
                                     vm.data = Object.assign({}, vm.node1);
                                 } else if (res.code === 401) {
                                     this.$emit('show-warning', "登录超时：" + res.msg);

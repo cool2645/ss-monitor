@@ -11,6 +11,18 @@
         <section class="content">
             <div class="row">
                 <div class="col-md-12">
+                    <div id="msg-success" class="alert alert-success alert-dismissable" style="display: none;">
+                        <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
+                        <h4><i class="icon fa fa-info"></i> 成功!</h4>
+
+                        <p id="msg-success-p"></p>
+                    </div>
+                    <div id="msg-warning" class="alert alert-warning alert-dismissable" style="display: none;">
+                        <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
+                        <h4><i class="icon fa fa-warning"></i> 出错了!</h4>
+
+                        <p id="msg-warning-p">{{ warning }}</p>
+                    </div>
                     <div id="msg-error" class="alert alert-danger alert-dismissable" style="display: none;">
                         <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
                         <h4><i class="icon fa fa-warning"></i> 出错了!</h4>
@@ -55,6 +67,7 @@
                         <th v-if="!noIpVer">{{ workerType === 'tester' ? 'IP 协议' : '类型/IP 协议' }}</th>
                         <th>运行结果</th>
                         <th>运行 Host</th>
+                        <th v-if="isAdmin">重置</th>
                         <th>创建时间</th>
                         <th>更新时间</th>
                     </tr>
@@ -73,6 +86,7 @@
                             <a href="javascript:;" @click="location('/task/' + task.ID)" v-if="task.Worker" class="btn btn-danger">{{ task.Worker }}</a>
                             <p v-else>未指定</p>
                         </td>
+                        <td v-if="isAdmin"><a href="javascript:;" @click="resetTask(task.ID)" class="btn btn-danger">重置</a></td>
                         <td>{{ task.CreatedAt }}</td>
                         <td>{{ task.UpdatedAt }}</td>
                     </tr>
@@ -103,6 +117,9 @@
     import urlParam from './buildUrlParam'
 
     export default {
+        props: [
+            "auth"
+        ],
         data() {
             return {
                 jsonSource: {},
@@ -113,10 +130,14 @@
                 page:  this.$route.hash.substr(1) || 1,
                 perPage: 10,
                 clock: null,
+                warning: "",
                 error: ""
             }
         },
         computed: {
+            isAdmin() {
+                return this.auth.isLogin && this.auth.user.privilege === "admin"
+            },
             data() {
                 return this.jsonSource.result ? this.jsonSource.data.data : []
             },
@@ -166,6 +187,8 @@
                 this.updateData();
             },
             dismissAlert() {
+                $("#msg-success").hide(10);
+                $("#msg-warning").hide(10);
                 $("#msg-error").hide(10);
             },
             onWorkerTypeChange() {
@@ -209,6 +232,37 @@
                     .catch(error => {
                         $("#msg-error").hide(10).show(100);
                         clearInterval(this.clock);
+                    });
+            },
+            resetTask(id) {
+                let vm = this;
+                fetch(config.urlPrefix + '/task/' + id, {
+                    credentials: 'include',
+                    method: "DELETE",
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                })
+                    .then(res => {
+                        res.json().then(
+                            res => {
+                                if (res.result) {
+                                    $("#msg-warning").hide(100);
+                                    $("#msg-success").show(100);
+                                    this.updateData()
+                                } else if (res.code === 401) {
+                                    vm.warning = "登录超时：" + res.msg;
+                                    $("#msg-warning").hide(10).show(100);
+                                    this.$emit('check-auth');
+                                    setTimeout(()=>{ vm.location("/admin") }, 2000);
+                                } else {
+                                    vm.warning = "发生错误：" + res.msg;
+                                    $("#msg-warning").hide(10).show(100);
+                                }
+                            }
+                        )
+                    })
+                    .catch(error => {
+                        vm.warning = "发生错误：" + res.msg;
+                        $("#msg-warning").hide(10).show(100);
                     });
             },
             getNodes() {

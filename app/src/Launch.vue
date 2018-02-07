@@ -40,10 +40,20 @@
                             <div class="form-horizontal">
                                 <div class="row">
                                     <fieldset class="col-sm-12">
-                                        <legend>创建 Watcher 任务</legend>
-                                        <p>Watcher 任务通过 Ping 来测试服务器的中国大陆可访问性。</p>
+                                        <legend>创建 Watch 任务</legend>
+                                        <p>Watch 任务通过 Ping 来测试服务器的中国大陆可访问性。</p>
                                         <p>请在服务器名中填入域名或 IPv4 地址。</p>
-                                        <div class="form-group">
+                                        <div v-if="isAdmin" class="form-group">
+                                            <label for="tester-server-name" class="col-sm-3 control-label">节点名</label>
+
+                                            <div class="col-sm-9">
+                                                <select class="form-control" id="watcher-node" v-model="watcher.node_id">
+                                                    <option value="0">自定义</option>
+                                                    <option v-for="node in nodes" :value="node.ID">{{ node.Name }}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div v-if="watcher.node_id == 0" class="form-group">
                                             <label for="watcher-server-name" class="col-sm-3 control-label">服务器名</label>
 
                                             <div class="col-sm-9">
@@ -61,6 +71,34 @@
                         </div>
                     </div>
                     <!-- /.box -->
+                    <!-- general form elements -->
+                    <div v-if="isAdmin" class="box box-primary">
+                        <div class="box-body">
+                            <div class="form-horizontal">
+                                <div class="row">
+                                    <fieldset class="col-sm-12">
+                                        <legend>创建 Clean 任务</legend>
+                                        <p>Clean 任务通过一系列预设程序来尝试重建虚拟服务器并更新 DNS 记录。</p>
+                                        <div class="form-group">
+                                            <label for="tester-server-name" class="col-sm-3 control-label">节点名</label>
+
+                                            <div class="col-sm-9">
+                                                <select class="form-control" id="cleaner-node" v-model="cleaner.node_id">
+                                                    <option v-for="node in nodes" :value="node.ID">{{ node.Name }}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                    </fieldset>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- /.box-body -->
+                        <div class="box-footer">
+                            <button @click="launchCleaner" class="btn btn-primary">添加</button>
+                        </div>
+                    </div>
+                    <!-- /.box -->
                 </div>
                 <!-- right column -->
                 <div class="col-md-6">
@@ -70,12 +108,23 @@
                             <div class="form-horizontal">
                                 <div class="row">
                                     <fieldset class="col-sm-12">
-                                        <legend>创建 Tester 任务</legend>
-                                        <p>Tester 任务通过 Docker 下的 Shadowsocks 客户端来测试 Shadowsocks 服务器的响应情况。</p>
+                                        <legend>创建 Test 任务</legend>
+                                        <p>Test 任务通过 Docker 下的 Shadowsocks 客户端来测试 Shadowsocks 服务器的响应情况。</p>
                                         <p>请在 Json 配置一栏中填入 Shadowsocks 的客户端配置。</p>
                                         <p>请在服务器名中填入友好的对该服务器的称呼。你的 Json 配置不会被公开，我们将用你填写的“服务器名”来称呼它。</p>
 
-                                        <div class="form-group">
+                                        <div v-if="isAdmin" class="form-group">
+                                            <label for="tester-server-name" class="col-sm-3 control-label">节点名</label>
+
+                                            <div class="col-sm-9">
+                                                <select class="form-control" id="tester-node" v-model="tester.node_id">
+                                                    <option value="0">自定义</option>
+                                                    <option v-for="node in nodes" :value="node.ID">{{ node.Name }}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div v-if="tester.node_id == 0" class="form-group">
                                             <label for="tester-server-name" class="col-sm-3 control-label">服务器名</label>
 
                                             <div class="col-sm-9">
@@ -94,7 +143,7 @@
                                             </div>
                                         </div>
 
-                                        <div class="form-group">
+                                        <div v-if="tester.node_id == 0" class="form-group">
                                             <label for="ss-json" class="col-sm-3 control-label">Json 配置</label>
 
                                             <div class="col-sm-9">
@@ -124,16 +173,26 @@
     import config from './config'
     import urlParam from './buildUrlParam'
     export default {
+        props: [
+            "auth"
+        ],
         data() {
             return {
                 warning: "",
                 error: "",
+                nodes: [],
+                cleaner: {
+                    class: "cleaner",
+                    node_id: 0
+                },
                 watcher: {
                     class: "watcher",
+                    node_id: 0,
                     server_name: ""
                 },
                 tester: {
                     class: "tester",
+                    node_id: 0,
                     ip_ver: 4,
                     server_name: "",
                     ss_json: `{
@@ -145,6 +204,25 @@
                 }
             }
         },
+        computed: {
+            isAdmin() {
+                return this.auth.isLogin && this.auth.user.privilege === "admin"
+            }
+        },
+        mounted() {
+            if(this.isAdmin)
+                this.getNodes();
+        },
+        watch: {
+            isAdmin(newV, oldV) {
+                if (newV && !oldV) {
+                    this.getNodes()
+                } else if(!newV && oldV) {
+                    this.watcher.node_id = 0;
+                    this.tester.node_id = 0;
+                }
+            }
+        },
         methods: {
             dismissAlert() {
                 $("#msg-success").hide(10);
@@ -152,19 +230,27 @@
                 $("#msg-error").hide(10);
             },
             launchWatcher() {
-                if (!this.watcher.server_name) {
+                if (this.watcher.node_id == 0 && !this.watcher.server_name) {
                     this.warning = "请填写服务器名";
                     $("#msg-warning").hide(10).show(100);
                     return
                 }
                 this.launchTask(this.watcher)
             },
+            launchCleaner() {
+                if (this.cleaner.node_id == 0) {
+                    this.warning = "请选择节点";
+                    $("#msg-warning").hide(10).show(100);
+                    return
+                }
+                this.launchTask(this.cleaner)
+            },
             launchTester() {
-                if (!this.tester.server_name) {
+                if (this.tester.node_id == 0 && !this.tester.server_name) {
                     this.warning = "请填写服务器名";
                     $("#msg-warning").hide(10).show(100);
                     return
-                } else if(!this.tester.ss_json) {
+                } else if(this.tester.node_id == 0 && !this.tester.ss_json) {
                     this.warning = "请填写 Json 配置";
                     $("#msg-warning").hide(10).show(100);
                     return
@@ -174,6 +260,7 @@
             launchTask(worker) {
                 let vm = this;
                 fetch(config.urlPrefix + '/task?', {
+                    credentials: 'include',
                     method: "POST",
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: urlParam(worker)
@@ -186,6 +273,12 @@
                                     $("#msg-error").hide(100);
                                     $("#msg-success").show(100);
                                     setTimeout(()=>{ vm.$router.push({path: '/task'})}, 2000);
+                                } else if (res.code === 401) {
+                                    vm.warning = "登录超时：" + res.msg;
+                                    $("#msg-error").hide(100);
+                                    $("#msg-warning").hide(10).show(100);
+                                    this.$emit('check-auth');
+                                    setTimeout(()=>{ vm.$router.push({path: "/admin"})}, 2000);
                                 } else {
                                     vm.error = "发生错误：" + res.msg;
                                     $("#msg-warning").hide(100);
@@ -193,8 +286,33 @@
                                 }
                             }
                         )
+                    })
+                    .catch(error => {
+                        vm.error = "发生错误：" + res.msg;
+                        $("#msg-warning").hide(100);
+                        $("#msg-error").hide(10).show(100);
                     });
-            }
+            },
+            getNodes() {
+                let vm = this;
+                fetch(config.urlPrefix + '/node?',  {
+                    credentials: 'include',
+                })
+                    .then(res => {
+                        res.json().then(
+                            res => {
+                                if (res.result) {
+                                    vm.nodes = res.data
+                                }
+                            }
+                        )
+                    })
+                    .catch(error => {
+                        vm.error = "发生错误：" + res.msg;
+                        $("#msg-warning").hide(100);
+                        $("#msg-error").hide(10).show(100);
+                    });
+            },
         }
     }
 </script>
