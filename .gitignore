@@ -1,5 +1,6 @@
 .idea
 config.toml
 ss-monitor
+ss-monitor.exe
 __pycache__
 *~

@@ -1,5 +1,6 @@
-var path = require('path')
-var webpack = require('webpack')
+const path = require('path');
+const webpack = require('webpack');
+const SWPrecacheWebpackPlugin = require('sw-precache-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
@@ -44,8 +45,16 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      filename: "../index.html",
-      template: __dirname + "/src/index.html"
+        filename: "../index.html",
+        template: __dirname + "/src/index.html"
+    }),
+    new SWPrecacheWebpackPlugin({
+        cacheId: 'ss-monitor',
+        dontCacheBustUrlsMatching: /\.\w{8}\./,
+        filename: '../service-worker.js',
+        minify: true,
+        navigateFallback: '/index.html',
+        staticFileGlobsIgnorePatterns: [/\.map$/, /asset-manifest\.json$/],
     })
   ],
   resolve: {
@@ -61,15 +70,16 @@ module.exports = {
     hints: false
   },
   devtool: '#eval-source-map',
-}
+};
 
 if (process.env.NODE_ENV === 'production') {
-  module.exports.devtool = '#source-map'
+  module.exports.devtool = '#source-map';
   // http://vue-loader.vuejs.org/en/workflow/production.html
   module.exports.plugins = (module.exports.plugins || []).concat([
     new webpack.DefinePlugin({
       'process.env': {
-        NODE_ENV: '"production"'
+        NODE_ENV: '"production"',
+        PUBLIC_URL: '"."'
       }
     }),
     new webpack.optimize.UglifyJsPlugin({
