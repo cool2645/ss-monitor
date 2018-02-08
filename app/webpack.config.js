@@ -42,6 +42,12 @@ module.exports = {
       }
     ]
   },
+  plugins: [
+    new HtmlWebpackPlugin({
+      filename: "../index.html",
+      template: __dirname + "/src/index.html"
+    })
+  ],
   resolve: {
     alias: {
       'vue$': 'vue/dist/vue.esm.js'
@@ -74,10 +80,6 @@ if (process.env.NODE_ENV === 'production') {
     }),
     new webpack.LoaderOptionsPlugin({
       minimize: true
-    }),
-    new HtmlWebpackPlugin({
-      filename: "../index.html",
-      template: __dirname + "/src/index.html",
-    }),
+    })
   ])
 }
