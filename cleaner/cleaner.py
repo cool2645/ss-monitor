@@ -12,6 +12,7 @@ from dnsimple import DNSimple
 from conoha.config import Config as ConohaConfig
 from conoha.api import Token
 from conoha.compute import VMList, VMImageList, VMImage, VM, VMPlanList, VMPlan
+from conoha.image import ImageList, Image
 
 sys.path.append("..")
 from worker import Worker
@@ -57,6 +58,7 @@ class Cleaner(Worker):
             }
         })
         self.conoha_token = None
+        self.conoha_vmlist = None
         # Init dnsimple api instance
         self.dnsimpleUsername = self.config.get('cleaner', 'dnsimpleUsername')
         self.dnsimplePassword = self.config.get('cleaner', 'dnsimplePassword')
@@ -69,19 +71,23 @@ class Cleaner(Worker):
             'Conoha': self.init_provider_api_conoha
         }
         self.create_tmp_snapshot = {
-            'Vultr': self.create_tmp_snapshot_vultr
+            'Vultr': self.create_tmp_snapshot_vultr,
+            'Conoha': self.create_tmp_snapshot_conoha
         }
         self.destroy_tmp_snapshot = {
-            'Vultr': self.destroy_tmp_snapshot_vultr
+            'Vultr': self.destroy_tmp_snapshot_vultr,
+            'Conoha': self.destroy_tmp_snapshot_conoha
         }
         self.get_server_info = {
-            'Vultr': self.get_server_info_vultr
+            'Vultr': self.get_server_info_vultr,
+            'Conoha': self.get_server_info_conoha
         }
         self.destroy_and_create = {
             'Vultr': self.destroy_and_create_vultr
         }
         self.get_server_ip = {
-            'Vultr': self.get_server_ip_vultr
+            'Vultr': self.get_server_ip_vultr,
+            'Conoha': self.get_server_ip_conoha
         }
         self.update_dns = {
             'DNSimple': self.update_dns_dnsimple
@@ -93,15 +99,26 @@ class Cleaner(Worker):
     def init_provider_api_conoha(self):
         rst = self.do_safely(
             method=Token,
-            description="init conoha api",
+            description="initializing conoha api token",
             args={
                 'conf': self.conoha_conf
             }
         )
         if isinstance(rst, bool) and not rst:
-            logging.error("Failed while init conoha api")
+            logging.error("Failed while init conoha api token")
             return False
         self.conoha_token = rst
+        rst = self.do_safely(
+            method=VMList,
+            description="initializing conoha vmlist",
+            args={
+                'token': self.conoha_token
+            }
+        )
+        if isinstance(rst, bool) and not rst:
+            logging.error("Failed while init conoha api vmlist")
+            return False
+        self.conoha_vmlist = rst
         return True
 
     def get_tasks(self):
@@ -447,10 +464,46 @@ class Cleaner(Worker):
             self.targetVPS = servers
             return True
 
+    def get_server_info_conoha(self, task, vmid=None):
+        # Get server info from task's IPv4 or subid
+        logging.debug("Starting getting server info for node %s..." % task['Node']['Name'])
+        rst = self.do_safely(method=self.conoha_vmlist.update,
+                                 description="getting server info for node %s" % task['Node']['Name'],
+                                 args={})
+        if isinstance(rst, bool) and not rst:
+            return False
+        servers = self.conoha_vmlist
+        if vmid is None:
+            for vm in servers:
+                self.targetVPS = vm
+                if self.get_server_ip_conoha()['ipv4'] == task['Node']['IPv4']:
+                    logging.debug("Server info for ip %s: %s" % (task['Node']['IPv4'], self.targetVPS.rawInfo))
+                    return True
+            logging.error("Failed while getting server info for node %s" % (task['Node']['Name']))
+            return False
+        else:
+            logging.debug("Server info for vmid %s: %s" % (vmid, servers[vmid].rawInfo))
+            self.targetVPS = servers[vmid]
+            return True
+
     def get_server_ip_vultr(self):
         return {
             'ipv4': self.targetVPS['main_ip'],
             'ipv6': self.targetVPS['v6_networks'][0]['v6_main_ip']
+        }
+
+    def get_server_ip_conoha(self):
+        v4, v6 = None, None
+        for k in self.targetVPS.addressList:
+            for d in self.targetVPS.addressList[k]:
+                if 'version' in d:
+                    if d['version'] == 4:
+                        v4 = d['addr']
+                    elif d['version'] == 6:
+                        v6 = d['addr']
+        return {
+            'ipv4': v4,
+            'ipv6': v6
         }
 
     def create_tmp_snapshot_vultr(self, task):
@@ -468,7 +521,7 @@ class Cleaner(Worker):
         logging.debug("Snapshot id for node %s is %s" % (task['Node']['Name'], rst['SNAPSHOTID']))
         self.tmpSnapshotID = rst['SNAPSHOTID']
         # Wait until finish creating snapshot
-        logging.debug("Starting waiting snapshot for node %s..." % task['Node']['Name'])
+        logging.debug("Waiting snapshot for node %s..." % task['Node']['Name'])
         finish = False
         while not finish:
             rst = self.do_safely(method=self.vultr.snapshot.list,
@@ -480,17 +533,86 @@ class Cleaner(Worker):
                 return False
             logging.debug("Snapshot status is %s" % rst[self.tmpSnapshotID]['status'])
             finish = True if rst[self.tmpSnapshotID]['status'] == 'complete' else False
-            time.sleep(self.queryInterval)
+            if not finish:
+                time.sleep(self.queryInterval)
+        logging.debug("Successfully create snapshot for node %s" % task['Node']['Name'])
+        return True
+
+    def create_tmp_snapshot_conoha(self, task):
+        # Shutdown the VM if needed
+        if self.targetVPS.status != 'SHUTOFF':
+            logging.debug("Shutting down the VM for node %s..." % task['Node']['Name'])
+            try:
+                self.targetVPS.stop()
+            except:
+                logging.error("Failed while shutting down the VM for node %s..." % task['Node']['Name'])
+                return False
+            # Wait for shutting down
+            logging.debug("Waiting for shutting down the VM for node %s..." % task['Node']['Name'])
+            finish = False
+            while not finish:
+                if not self.get_server_info_conoha(task, self.targetVPS.vmid):
+                    return False
+                if self.targetVPS.status == 'SHUTOFF':
+                    finish = True
+                else:
+                    time.sleep(self.queryInterval)
+        # Start create snapshot
+        logging.debug("Starting creating snapshot for node %s..." % task['Node']['Name'])
+        rst = self.do_safely(method=self.targetVPS.createImage,
+                             description="creating snapshot for node %s" % task['Node']['Name'],
+                             args={
+                                 'image_name': task['Node']['Name']
+                             })
+        if isinstance(rst, bool) and not rst:
+            return False
+        logging.debug("Snapshot id for node %s is %s" % (task['Node']['Name'], rst))
+        self.tmpSnapshotID = rst
+        # Wait until finish creating snapshot
+        logging.debug("Waiting snapshot for node %s..." % task['Node']['Name'])
+        finish = False
+        while not finish:
+            rst = self.do_safely(method=ImageList,
+                                 description="waiting snapshot for node %s" % task['Node']['Name'],
+                                 args={
+                                     'token': self.conoha_token
+                                 })
+            if isinstance(rst, bool) and not rst:
+                return False
+            logging.debug("Snapshot status is %s" % rst[self.tmpSnapshotID].status)
+            finish = True if rst[self.tmpSnapshotID].status == 'active' else False
+            if not finish:
+                time.sleep(self.queryInterval)
         logging.debug("Successfully create snapshot for node %s" % task['Node']['Name'])
         return True
 
     def destroy_tmp_snapshot_vultr(self, task):
-        # Start create snapshot
+        # Start destroy snapshot
         logging.debug("Starting destroying snapshot for node %s..." % task['Node']['Name'])
         rst = self.do_safely(method=self.vultr.snapshot.destroy,
                              description="destroying snapshot for node %s" % task['Node']['Name'],
                              args={
                                  'snapshotid': self.tmpSnapshotID
+                             })
+        if isinstance(rst, bool) and not rst:
+            return False
+        logging.debug("Successfully destroy snapshot for node %s" % task['Node']['Name'])
+        return True
+
+    def destroy_tmp_snapshot_conoha(self, task):
+        # Start destroy snapshot
+        logging.debug("Starting destroying snapshot for node %s..." % task['Node']['Name'])
+        im_list = self.do_safely(method=ImageList,
+                             description="getting imageList for node %s" % task['Node']['Name'],
+                             args={
+                                 'token': self.conoha_token
+                             })
+        if isinstance(im_list, bool) and not im_list:
+            return False
+        rst = self.do_safely(method=im_list.delete,
+                             description="destroying snapshot for node %s" % task['Node']['Name'],
+                             args={
+                                 'imageId': self.tmpSnapshotID
                              })
         if isinstance(rst, bool) and not rst:
             return False

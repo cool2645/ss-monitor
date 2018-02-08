@@ -48,9 +48,29 @@ def do(task):
 
 
 def test2():
+    test_task = {
+        'ID': 1,
+        'Node': {
+            'ID': 1,
+            'Name': 'Fake-JP1',
+            'IPv4': '133.130.111.171',
+            'IPv6': '',
+            'DataCenter': '1',
+            'Plan': '200',
+            'Snapshot': '',
+            'Provider': 'Vultr',
+            'DNSProvider': 'DNSimple',
+            'DomainPrefix4': 'fake-us3.ss',
+            'DomainPrefix6': 'fake-us3.ss6',
+            'DomainRoot': '2645net.work'
+        }
+    }
     c = Cleaner()
     print(c.init_provider_api_conoha())
-
+    print(c.get_server_info_conoha(test_task))
+    # print(c.create_tmp_snapshot_conoha(test_task))
+    c.tmpSnapshotID = 'f404b20c-bd63-4af3-b773-3495a3bab758'
+    print(c.destroy_tmp_snapshot_conoha(test_task))
 
 # def test():
 # test_task = {
