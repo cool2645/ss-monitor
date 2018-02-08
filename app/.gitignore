@@ -5,6 +5,8 @@ yarn-error.log
 src/config.js
 /index.html
 dist/
+manifest.json
+service-worker.js
 
 # Editor directories and files
 .idea

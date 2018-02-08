@@ -11,6 +11,8 @@ import TreeView from "vue-json-tree-view"
 import LaravelVuePagination from 'laravel-vue-pagination'
 import './style.css'
 import config from './config'
+import registerServiceWorker from './registerServiceWorker';
+registerServiceWorker();
 
 Vue.use(TreeView);
 Vue.use(VueRouter);
