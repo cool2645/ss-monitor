@@ -53,10 +53,9 @@
         props: ['routes'],
         methods: {
             changeTab(path) {
-                let vm = this;
                 this.$router.push(path);
                 $('body').removeClass('sidebar-open');
-                vm.slideout.close();
+                this.slideout.close();
             }
         },
         mounted() {
@@ -69,16 +68,16 @@
                 'padding': 200,
                 'tolerance': 70,
             });
-            window.addEventListener('resize', function () {
+            addEventListener('resize', () => {
                 vm.slideout.close();
             });
-            vm.slideout.on('open', function () {
+            vm.slideout.on('open', () => {
                 vm.isOpen = true;
             });
-            vm.slideout.on('close', function () {
+            vm.slideout.on('close', () => {
                 vm.isOpen = false;
             });
-            document.getElementById('sidebar-toggle-mobile').addEventListener('click', function () {
+            document.getElementById('sidebar-toggle-mobile').addEventListener('click', () => {
                 if (vm.isOpen) {
                     vm.slideout.close();
                 }

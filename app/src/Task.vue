@@ -31,7 +31,7 @@
                     </div>
                 </div>
             </div>
-            <div class="table-responsive" style="margin-top: 20px">
+            <div class="table-responsive" style="margin-top: 20px" data-slideout-ignore>
                 <table class="table table-hover">
                     <tbody>
                     <tr>
