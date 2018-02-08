@@ -50,7 +50,7 @@ new Vue({
         'foot-section': Footer
     },
     mounted() {
-        this.checkAuth()
+        this.checkAuth();
     },
     methods: {
         checkAuth() {
