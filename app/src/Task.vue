@@ -110,7 +110,7 @@
                     </div>
                 </div>
             </div>
-            <div v-if="isManager" class="table-responsive" style="margin-top: 20px">
+            <div v-if="isManager" class="table-responsive" style="margin-top: 20px" data-slideout-ignore>
                 <table class="table table-hover">
                     <tbody>
                     <tr>
@@ -296,6 +296,8 @@
                     });
             },
             resetTask(id) {
+                let r = confirm("确定要重置任务吗？");
+                if (!r) return;
                 let vm = this;
                 fetch(config.urlPrefix + '/task/' + id, {
                     credentials: 'include',
@@ -354,5 +356,8 @@
              background-color: #a761ca;
              border-color: #a761ca;
         }
+    }
+    .content {
+        padding-top: 0;
     }
 </style>

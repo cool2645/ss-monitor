@@ -235,6 +235,8 @@
                     });
             },
             resetTask(id) {
+                let r = confirm("确定要重置任务吗？");
+                if (!r) return;
                 let vm = this;
                 fetch(config.urlPrefix + '/task/' + id, {
                     credentials: 'include',
