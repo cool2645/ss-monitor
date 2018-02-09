@@ -11,8 +11,8 @@ from multiprocessing.dummy import Pool as ThreadPool
 from dnsimple import DNSimple
 from conoha.config import Config as ConohaConfig
 from conoha.api import Token
-from conoha.compute import VMList, VMImageList, VMImage, VM, VMPlanList, VMPlan
-from conoha.image import ImageList, Image
+from conoha.compute import VMList
+from conoha.image import ImageList
 
 sys.path.append("..")
 from worker import Worker
@@ -30,6 +30,7 @@ class Cleaner(Worker):
         self.createMinTime = int(self.config.get('cleaner', 'createMinTime'))
         self.destroyWaitTime = int(self.config.get('cleaner', 'destroyWaitTime'))
         self.timeZone = int(self.config.get('cleaner', 'timeZone'))
+        self.sshPassword = self.config.get('cleaner', 'sshPassword')
         self.oldVPSList = []
         self.oldIPv4List = []
         self.vultrDestroyCoolTime = int(self.config.get('cleaner', 'vultrDestroyCoolTime'))
@@ -37,6 +38,7 @@ class Cleaner(Worker):
         self.destroyResults = []
         self.VULTR512MPLANID = '200'
         self.VULTR1024MPLANID = '201'
+        self.CONOHA1024PLANID = '7eea7469-0d85-4f82-8050-6ae742394681'
         self.lastException = None
         self.taskState = ['Pending', 'Destroying', 'Creating',
                           'Watching', 'Shiny☆', 'Failing',
@@ -64,7 +66,7 @@ class Cleaner(Worker):
         self.dnsimplePassword = self.config.get('cleaner', 'dnsimplePassword')
         self.dns = DNSimple(username=self.dnsimpleUsername, password=self.dnsimplePassword)
         # Function dic for different VPS providers
-        self.supportedVPSProviderList = ['Vultr']
+        self.supportedVPSProviderList = ['Vultr', 'Conoha']
         self.supportedDNSProviderList = ['DNSimple']
         self.init_provider_api = {
             'Vultr': self.init_provider_api_vultr,
@@ -83,7 +85,8 @@ class Cleaner(Worker):
             'Conoha': self.get_server_info_conoha
         }
         self.destroy_and_create = {
-            'Vultr': self.destroy_and_create_vultr
+            'Vultr': self.destroy_and_create_vultr,
+            'Conoha': self.destroy_and_create_conoha
         }
         self.get_server_ip = {
             'Vultr': self.get_server_ip_vultr,
@@ -259,7 +262,7 @@ class Cleaner(Worker):
             return False
 
         # Set target snapshot ID, create temporary snapshot if needed(6)
-        if task['Node']['Snapshot'] is None or task['Node']['Snapshot'] == '':
+        if task['Node']['OS'] == 'CreateSnapshot':
             msg = "Creating temporary snapshot"
             self.sync_log_and_broadcast(task, msg, emoji='working')
             self.taskStateID = 6
@@ -272,7 +275,7 @@ class Cleaner(Worker):
                 return False
             need_destroy_snapshot = True
         else:
-            self.tmpSnapshotID = task['Node']['Snapshot']
+            self.tmpSnapshotID = task['Node']['Image']
         # Main clean loop(0->1->2->3->1->2->3->...)
         while True:
             self.attempts = len(self.oldVPSList) + 1
@@ -468,8 +471,8 @@ class Cleaner(Worker):
         # Get server info from task's IPv4 or subid
         logging.debug("Starting getting server info for node %s..." % task['Node']['Name'])
         rst = self.do_safely(method=self.conoha_vmlist.update,
-                                 description="getting server info for node %s" % task['Node']['Name'],
-                                 args={})
+                             description="getting server info for node %s" % task['Node']['Name'],
+                             args={})
         if isinstance(rst, bool) and not rst:
             return False
         servers = self.conoha_vmlist
@@ -603,10 +606,10 @@ class Cleaner(Worker):
         # Start destroy snapshot
         logging.debug("Starting destroying snapshot for node %s..." % task['Node']['Name'])
         im_list = self.do_safely(method=ImageList,
-                             description="getting imageList for node %s" % task['Node']['Name'],
-                             args={
-                                 'token': self.conoha_token
-                             })
+                                 description="getting imageList for node %s" % task['Node']['Name'],
+                                 args={
+                                     'token': self.conoha_token
+                                 })
         if isinstance(im_list, bool) and not im_list:
             return False
         rst = self.do_safely(method=im_list.delete,
@@ -680,6 +683,21 @@ class Cleaner(Worker):
         logging.debug("Wait = False, returning...")
         return True
 
+    def destroy_conoha(self, task):
+        logging.debug("Starting destroying Conoha VPS %s created at %s for node %s..." % (self.targetVPS.vmid,
+                                                                                          self.targetVPS.created,
+                                                                                          task['Node']['Name']))
+        rst = self.do_safely(
+            method=self.conoha_vmlist.delete,
+            description="destroying conoha vps",
+            args={
+                'vmid': self.targetVPS.vmid
+            }
+        )
+        if isinstance(rst, bool) and not rst:
+            return False
+        return True
+
     def create_vultr(self, task):
         if task['Node']['Plan'] == self.VULTR512MPLANID:
             logging.debug("Creating 512M Vultr VPS using snapshot %s for node %s..." % (self.tmpSnapshotID,
@@ -687,6 +705,9 @@ class Cleaner(Worker):
         elif task['Node']['Plan'] == self.VULTR1024MPLANID:
             logging.debug("Creating 1024M Vultr VPS using snapshot %s for node %s..." % (self.tmpSnapshotID,
                                                                                          task['Node']['Name']))
+        else:
+            logging.error("Invalid Vultr plan id: %s" % (task['Node']['Plan']))
+            return False
         rst = self.do_safely(method=self.vultr.server.create,
                              description="creating vps for node %s" % task['Node']['Name'],
                              args={
@@ -749,6 +770,42 @@ class Cleaner(Worker):
         logging.debug("Successfully create new VPS for node %s" % task['Node']['Name'])
         return True
 
+    def create_conoha(self, task):
+        if task['Node']['Plan'] == self.CONOHA1024PLANID:
+            logging.debug("Creating 1024M Conoha VPS using snapshot %s for node %s..." % (self.tmpSnapshotID,
+                                                                                          task['Node']['Name']))
+        else:
+            logging.error("Invalid Conoha plan id: %s" % (task['Node']['Plan']))
+            return False
+        rst = self.do_safely(method=self.conoha_vmlist.add,
+                             description="creating vps for node %s" % task['Node']['Name'],
+                             args={
+                                 'image': self.tmpSnapshotID,
+                                 'flavor': task['Node']['Plan'],
+                                 'adminPass': self.sshPassword,
+                                 'name': task['Node']['Name'] + '-' + str(int(time.time())),
+                                 'securityGroupNames': ['default', 'gncs-ipv4-all', 'gncs-ipv6-all']
+                             })
+        if isinstance(rst, bool) and not rst:
+            logging.warning("Conoha VPS create failed due to unknown error, returning...")
+            return False
+        else:
+            new_vps_id = rst
+        # Clear target VPS
+        self.targetVPS = None
+        logging.debug("New VPS ID is %s" % new_vps_id)
+        # Wait for creating and update target VPS info
+        logging.debug("Waiting for creating complete for node %s..." % (task['Node']['Name']))
+        finish = False
+        while not finish:
+            if not self.get_server_info_conoha(task=task, vmid=new_vps_id):
+                return False
+            logging.debug("Server info: %s" % self.targetVPS.rawInfo)
+            finish = (self.targetVPS.status == 'ACTIVE')
+            time.sleep(self.queryInterval)
+        logging.debug("Successfully create new VPS for node %s" % task['Node']['Name'])
+        return True
+
     def destroy_and_create_vultr(self, task):
         # Check availability for 1024M Vultr VPS plan in given DataCenter(0)
         rst = self.do_safely(method=self.vultr.regions.list,
@@ -805,6 +862,39 @@ class Cleaner(Worker):
             return False
         msg = "Successfully created new %s instance [%s] for node %s" % (
             self.targetVPS['ram'], self.targetVPS['main_ip'], task['Node']['Name'])
+        self.sync_log_and_broadcast(task, msg, emoji='success')
+        return True
+
+    def destroy_and_create_conoha(self, task):
+        # Update old VPS list and old IPv4 list(0)
+        old_ipv4 = self.get_server_ip['Conoha']()['ipv4']
+        self.oldVPSList.append(self.targetVPS.rawInfo)
+        self.oldIPv4List.append(old_ipv4)
+        self.sync_log(task)
+
+        # Destroy useless VPS(1)
+        self.taskStateID = 1
+        self.update_task_state(task)
+        msg = "Destroying instance [%s] for node %s" % (old_ipv4, task['Node']['Name'])
+        self.sync_log_and_broadcast(task, msg, emoji='working')
+        if not self.destroy_conoha(task):
+            msg = "Failed while destroying instance [%s] for node %s" % (old_ipv4, task['Node']['Name'])
+            self.sync_log_and_broadcast(task, msg, emoji='fail')
+            return False
+        msg = "Successfully destroyed [%s] for node %s" % (old_ipv4, task['Node']['Name'])
+        self.sync_log_and_broadcast(task, msg, emoji='success')
+
+        # Create new VPS using snapshot(2)
+        self.taskStateID = 2
+        self.update_task_state(task)
+        msg = "Creating new instance for node %s" % (task['Node']['Name'])
+        self.sync_log_and_broadcast(task, msg, emoji='working')
+        if not self.create_conoha(task):
+            msg = "Failed while creating new instance for node %s" % (task['Node']['Name'])
+            self.sync_log_and_broadcast(task, msg, emoji='fail')
+            return False
+        new_ipv4 = self.get_server_ip['Conoha']()['ipv4']
+        msg = "Successfully created new instance [%s] for node %s" % (new_ipv4, task['Node']['Name'])
         self.sync_log_and_broadcast(task, msg, emoji='success')
         return True
 
