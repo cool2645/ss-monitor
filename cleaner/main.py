@@ -1,10 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf8 -*-
+
 from cleaner import Cleaner
 from multiprocessing.dummy import Pool as ThreadPool
 import threading
 import time
+import sys
 import logging
+import traceback
 
 w = Cleaner()
 pool = ThreadPool(w.maxThreads)
@@ -26,7 +29,8 @@ def main():
     except KeyboardInterrupt:
         logging.warning("Interrupt signal received, exiting")
         loop = False
-        result.wait()
+        if result is not None:
+            result.wait()
         return
 
 
@@ -44,7 +48,12 @@ def main_loop():
 def do(task):
     logging.debug("Start doing task: %s" % task)
     cleaner = Cleaner()
-    return cleaner.clean(task)
+    try:
+        return cleaner.clean(task)
+    except:
+        traceback.print_exc(file=sys.stderr)
+        logging.critical('Failed while cleaning for task %s' % (task['ID']))
+        return False
 
 
 if __name__ == '__main__':

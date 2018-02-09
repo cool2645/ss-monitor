@@ -287,7 +287,7 @@ class Cleaner(Worker):
                 return False
 
             # Call watcher(3)
-            msg = "Calling watcher to watch [%s]" % (self.targetVPS['main_ip'])
+            msg = "Calling watcher to watch [%s]" % (self.get_server_ip[provider]()['ipv4'])
             self.sync_log_and_broadcast(task, msg, emoji='working')
             self.taskStateID = 3
             self.update_task_state(task)
@@ -301,7 +301,7 @@ class Cleaner(Worker):
             rst = self.assign_task_and_wait(task=task, new_task_dict=watcher_task_dict)
             # Check watch task result()
             if isinstance(rst, bool) and not rst:
-                msg = "Failed while calling watcher to watch [%s]" % (self.targetVPS['main_ip'])
+                msg = "Failed while calling watcher to watch [%s]" % (self.get_server_ip[provider]()['ipv4'])
                 self.sync_log_and_broadcast(task, msg, emoji='fail')
                 self.taskStateID = 5
                 self.update_task_state(task)
@@ -796,6 +796,8 @@ class Cleaner(Worker):
         logging.debug("New VPS ID is %s" % new_vps_id)
         # Wait for creating and update target VPS info
         logging.debug("Waiting for creating complete for node %s..." % (task['Node']['Name']))
+        logging.debug("Sleep 10s for cooling down...")
+        time.sleep(10)
         finish = False
         while not finish:
             if not self.get_server_info_conoha(task=task, vmid=new_vps_id):
