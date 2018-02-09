@@ -1,0 +1,3 @@
+-e git://github.com/spry-group/python-vultr.git#egg=vultr
+-e git://github.com/zhouziqunzzq/conoha-cli.git#egg=conoha-cli
+-e git://github.com/onlyhavecans/dnsimple-python.git#egg=dnsimple
