@@ -41,7 +41,16 @@ class Worker:
         self.threadsCnt = 0
         self.maxTry = int(self.config.get('worker', 'maxTry'))
         self.connTimeout = int(self.config.get('worker', 'connTimeout'))
-        logging.basicConfig(level=logging.DEBUG,
+        self.loggingLevel = self.config.get('worker', 'loggingLevel')
+        self.loggingLevelDict = {
+            'NOTSET': logging.NOTSET,
+            'DEBUG': logging.DEBUG,
+            'INFO': logging.INFO,
+            'WARNING': logging.WARNING,
+            'ERROR': logging.ERROR,
+            'CRITICAL': logging.CRITICAL
+        }
+        logging.basicConfig(level=self.loggingLevelDict[self.loggingLevel],
                             stream=sys.stdout,
                             format='[%(asctime)s] %(threadName)s %(filename)s [%(levelname)s] %(message)s',
                             datefmt='%Y %b %d %H:%M:%S', )
