@@ -225,7 +225,7 @@ class Cleaner(Worker):
         # Init VPS api(0)
         provider = task['Node']['Provider']
         logging.debug("Init API instance for provider %s for task %s" % (provider, task['ID']))
-        if not self.init_provider_api[provider]:
+        if not self.init_provider_api[provider]():
             msg = "Failed while initiating api for provider %s" % provider
             self.sync_log_and_broadcast(task, msg, emoji='fail')
             self.taskStateID = 5
