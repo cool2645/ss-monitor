@@ -84,7 +84,7 @@
                     <div class="col-sm-12">
                         <ul class="nav nav-stacked">
                             <li>
-                                SS IPv4 Json
+                                SS IPv6 Json
                                 <p v-if="!editing" class="pull-right">
                                     {{ data.Ss6Json }}
                                 </p>
