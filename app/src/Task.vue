@@ -5,6 +5,7 @@
             <h1>
                 任务状态
                 <small>Task Status</small>
+                <a v-if="sharable" href="javascript:;" @click="share"><i class="icon fa fa-share-alt pull-right"></i></a>
             </h1>
         </section>
         <!-- Content -->
@@ -195,6 +196,9 @@
             }
         },
         computed: {
+            sharable() {
+                return navigator.share;
+            },
             isAdmin() {
                 return this.auth.isLogin && this.auth.user.privilege === "admin"
             },
@@ -322,6 +326,15 @@
                         $("#msg-warning").hide(10).show(100);
                     });
             },
+            share() {
+                navigator.share({
+                    title: 'Task #' + this.$route.params.id,
+                    text: config.shareText,
+                    url: document.location.href,
+                })
+                    .then(() => console.log('Successful share'))
+                    .catch((error) => console.log('Error sharing', error));
+            }
         },
     }
 </script>
