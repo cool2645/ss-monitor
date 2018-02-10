@@ -101,7 +101,9 @@ func TaskCallback(taskID uint, worker string) (err error) {
 					}
 				}
 			}
-			broadcaster.Broadcast(msg, GlobCfg.MANAGER_NAME, "manager")
+			if len(failedTasks) != 0 {
+				broadcaster.Broadcast(msg, GlobCfg.MANAGER_NAME, "manager")
+			}
 			for _, nodeID := range toCleanNodeIDs {
 				node, err := model.GetNode(model.Db, nodeID)
 				if err != nil {
