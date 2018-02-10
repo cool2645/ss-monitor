@@ -12,7 +12,7 @@
                     <tr v-for="(worker, index) in workers">
                         <td>
                             <i class="fa fa-heartbeat li-icon"></i><span class="li-text">{{worker.Name}}</span>
-                            <span class="badge-center pull-right badge">{{timeStamp2String(worker.Time)}}</span>
+                            <span class="badge-center pull-right badge time-text">{{formatDateTime(worker.Time * 1000)}}</span>
                         </td>
                     </tr>
                     </tbody>
@@ -23,6 +23,7 @@
 </template>
 
 <script>
+    import formatDateTime from "./datetimeUtil.js"
     export default {
         name: "worker-status",
         props: [
@@ -50,16 +51,9 @@
             }
         },
         methods: {
-            timeStamp2String(time) {
-                let datetime = new Date(time * 1000);
-                let year = datetime.getFullYear();
-                let month = datetime.getMonth() + 1;
-                let date = datetime.getDate();
-                let hour = datetime.getHours();
-                let minute = datetime.getMinutes();
-                let second = datetime.getSeconds();
-                return year + "-" + month + "-" + date + "T" + hour + ":" + minute + ":" + second + "Z";
-            },
+            formatDateTime(time) {
+                return formatDateTime(time);
+            }
         }
     }
 </script>
@@ -71,15 +65,6 @@
 
     .li-icon {
         padding-top: 0.8em;
-    }
-
-    .status-text {
-        margin-left: 0.3em;
-        font-size: 0.4em;
-    }
-
-    .btn-center {
-        margin-top: -1.5em;
     }
 
     .badge-center {

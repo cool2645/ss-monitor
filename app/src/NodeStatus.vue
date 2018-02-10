@@ -58,6 +58,7 @@
 </template>
 
 <script>
+    import formatDateTimeFromDatetimeString from "./datetimeUtil"
     export default {
         name: "node-status",
         props: [
@@ -115,7 +116,7 @@
                 if (vm.cnTaskID === 0)
                     return "Never";
                 else
-                    return vm.node.Status.CN.UpdatedAt;
+                    return formatDateTimeFromDatetimeString(vm.node.Status.CN.UpdatedAt);
             },
             ssTaskID() {
                 if (!this.node.Status.SS)
@@ -135,7 +136,7 @@
                 if (vm.ssTaskID === 0)
                     return "Never";
                 else
-                    return vm.node.Status.SS.UpdatedAt;
+                    return formatDateTimeFromDatetimeString(vm.node.Status.SS.UpdatedAt);
             },
             ss6TaskID() {
                 if (!this.node.Status['SS-IPv6'])
@@ -155,7 +156,7 @@
                 if (vm.ss6TaskID === 0)
                     return "Never";
                 else
-                    return vm.node.Status['SS-IPv6'].UpdatedAt;
+                    return formatDateTimeFromDatetimeString(vm.node.Status['SS-IPv6'].UpdatedAt);
             },
         },
         methods: {
@@ -181,7 +182,7 @@
                     return '/launch';
                 else
                     return '/task/' + id;
-            }
+            },
         },
         mounted() {
             // console.log(this.ss6TaskID);

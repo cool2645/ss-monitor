@@ -74,21 +74,29 @@
                     <tr v-for="task in data">
                         <td><a href="javascript:;" @click="location('/task/' + task.ID)">{{ '#' + task.ID }}</a></td>
                         <td v-if="!(workerType === 'manager')">{{ task.Node.Name || task.ServerName }}</td>
-                        <td v-if="!noIpVer">{{ workerType === 'tester' ? task.IPVer : task.Class + '/' + task.IPVer }}</td>
-                        <td>
-                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-if="task.State === 'Queuing'" class="btn btn-info">{{ task.State }}</a>
-                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else-if="task.State === 'Passing'" class="btn btn-success">{{ task.State }}</a>
-                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else-if="task.State === 'Shiny☆'" class="btn btn-shiny">{{ task.State }}</a>
-                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else-if="task.State === 'Failing'" class="btn btn-danger">{{ task.State }}</a>
-                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else class="btn btn-warning">{{ task.State }}</a>
+                        <td v-if="!noIpVer">{{ workerType === 'tester' ? task.IPVer : task.Class + '/' + task.IPVer }}
                         </td>
                         <td>
-                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-if="task.Worker" class="btn btn-danger">{{ task.Worker }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-if="task.State === 'Queuing'"
+                               class="btn btn-info">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)"
+                               v-else-if="task.State === 'Passing'" class="btn btn-success">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)"
+                               v-else-if="task.State === 'Shiny☆'" class="btn btn-shiny">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)"
+                               v-else-if="task.State === 'Failing'" class="btn btn-danger">{{ task.State }}</a>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-else class="btn btn-warning">{{
+                                task.State }}</a>
+                        </td>
+                        <td>
+                            <a href="javascript:;" @click="location('/task/' + task.ID)" v-if="task.Worker"
+                               class="btn btn-danger">{{ task.Worker }}</a>
                             <p v-else>未指定</p>
                         </td>
-                        <td v-if="isAdmin"><a href="javascript:;" @click="resetTask(task.ID)" class="btn btn-danger">重置</a></td>
-                        <td>{{ task.CreatedAt }}</td>
-                        <td>{{ task.UpdatedAt }}</td>
+                        <td v-if="isAdmin"><a href="javascript:;" @click="resetTask(task.ID)"
+                                              class="btn btn-danger">重置</a></td>
+                        <td>{{ formatDateTimeFromDatetimeString(task.CreatedAt) }}</td>
+                        <td>{{ formatDateTimeFromDatetimeString(task.UpdatedAt) }}</td>
                     </tr>
                     </tbody>
                 </table>
@@ -115,6 +123,7 @@
 <script>
     import config from './config'
     import urlParam from './buildUrlParam'
+    import formatDateTimeFromDatetimeString from "./datetimeUtil"
 
     export default {
         props: [
@@ -127,7 +136,7 @@
                 workerType: this.$route.query.worker_type || '%',
                 ipVer: this.$route.query.ip_ver || '%',
                 nodeId: this.$route.query.node_id || '%',
-                page:  this.$route.hash.substr(1) || 1,
+                page: this.$route.hash.substr(1) || 1,
                 perPage: 10,
                 clock: null,
                 warning: "",
@@ -192,17 +201,17 @@
                 $("#msg-error").hide(10);
             },
             onWorkerTypeChange() {
-                this.$router.push({query: {...this.$route.query, worker_type: this.workerType }});
+                this.$router.push({query: {...this.$route.query, worker_type: this.workerType}});
                 this.page = 1;
                 this.updateData();
             },
             onIpVerChange() {
-                this.$router.push({query: {...this.$route.query, ip_ver: this.ipVer }});
+                this.$router.push({query: {...this.$route.query, ip_ver: this.ipVer}});
                 this.page = 1;
                 this.updateData();
             },
             onNodeChange() {
-                this.$router.push({query: {...this.$route.query, node_id: this.nodeId }});
+                this.$router.push({query: {...this.$route.query, node_id: this.nodeId}});
                 this.page = 1;
                 this.updateData();
             },
@@ -219,7 +228,7 @@
                     node_id: this.nodeId,
                     page: this.page,
                     order: 'desc'
-                }) )
+                }))
                     .then(res => {
                         res.json().then(
                             res => {
@@ -241,7 +250,7 @@
                 fetch(config.urlPrefix + '/task/' + id, {
                     credentials: 'include',
                     method: "DELETE",
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 })
                     .then(res => {
                         res.json().then(
@@ -254,7 +263,9 @@
                                     vm.warning = "登录超时：" + res.msg;
                                     $("#msg-warning").hide(10).show(100);
                                     this.$emit('check-auth');
-                                    setTimeout(()=>{ vm.location("/admin") }, 2000);
+                                    setTimeout(() => {
+                                        vm.location("/admin")
+                                    }, 2000);
                                 } else {
                                     vm.warning = "发生错误：" + res.msg;
                                     $("#msg-warning").hide(10).show(100);
@@ -279,6 +290,9 @@
                             }
                         )
                     });
+            },
+            formatDateTimeFromDatetimeString(time) {
+                return formatDateTimeFromDatetimeString(time);
             }
         }
     }
@@ -289,6 +303,7 @@
         margin-top: 5px;
         margin-bottom: 5px;
     }
+
     .btn-shiny {
         color: #fff;
         background-color: #b76add;

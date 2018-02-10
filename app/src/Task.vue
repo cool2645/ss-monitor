@@ -65,8 +65,8 @@
                             <p v-else>未指定</p>
                         </td>
                         <td v-if="isAdmin"><a href="javascript:;" @click="resetTask(task.ID)" class="btn btn-danger">重置</a></td>
-                        <td>{{ task.CreatedAt }}</td>
-                        <td>{{ task.UpdatedAt }}</td>
+                        <td>{{ formatDateTimeFromDatetimeString(task.CreatedAt) }}</td>
+                        <td>{{ formatDateTimeFromDatetimeString(task.UpdatedAt) }}</td>
                     </tr>
                     </tbody>
                 </table>
@@ -126,8 +126,8 @@
                             <p v-else>未指定</p>
                         </td>
                         <td v-if="isAdmin"><a href="javascript:;" @click="resetTask(task.ID)" class="btn btn-danger">重置</a></td>
-                        <td>{{ task.CreatedAt }}</td>
-                        <td>{{ task.UpdatedAt }}</td>
+                        <td>{{ formatDateTimeFromDatetimeString(task.CreatedAt) }}</td>
+                        <td>{{ formatDateTimeFromDatetimeString(task.UpdatedAt) }}</td>
                     </tr>
                     </tbody>
                 </table>
@@ -167,6 +167,7 @@
 <script>
     import config from './config'
     import urlParam from './buildUrlParam'
+    import formatDateTimeFromDatetimeString from "./datetimeUtil"
 
     export default {
         props: [
@@ -340,6 +341,9 @@
                 })
                     .then(() => console.log('Successful share'))
                     .catch((error) => console.log('Error sharing', error));
+            },
+            formatDateTimeFromDatetimeString(time) {
+                return formatDateTimeFromDatetimeString(time);
             }
         },
     }
