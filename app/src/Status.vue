@@ -19,9 +19,8 @@
                         </div>
                         <div class="box-body">
                             <!--Node status-->
-                            <transition name="fade">
-                                <node-status v-for="(node, index) in nodes"
-                                             :node="node" v-show="loadFinish"></node-status>
+                            <transition v-for="(node, index) in nodes" :key="index" name="fade" v-show="loadFinish">
+                                <node-status :node="node"></node-status>
                             </transition>
                             <!--./Node status-->
                         </div>

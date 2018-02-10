@@ -4,11 +4,11 @@
             <div class="box-header">
                 <i class="fa fa-cube"></i>
                 <h3 class="box-title">{{name}}</h3>
-                <span class="status-text">
+                <span class="status-text" :show="hasCN">
                     <span>丢包率 </span>
                     <span>{{avgLossTime}}</span>
                 </span>
-                <span class="status-text">
+                <span class="status-text" :show="hasCN">
                     <span>延迟 </span>
                     <span>{{avgResTime}}</span>
                 </span>
@@ -66,15 +66,28 @@
         data() {
             return {
                 name: this.node.Name,
-                avgLossTime: eval('(' + this.node.Status.CN.Result + ')').avg_lost_percent.toFixed(2),
-                avgResTime: eval('(' + this.node.Status.CN.Result + ')').avg_res_time.toFixed(2),
                 isCleaning: this.node.IsCleaning,
-                cnTaskID: this.node.Status.CN.ID,
-                ssTaskID: this.node.Status.SS.ID,
-                ss6TaskID: this.node.Status['SS-IPv6'].ID,
             }
         },
         computed: {
+            hasCN() {
+                if (!this.node.Status.CN)
+                    return false;
+                else
+                    return true;
+            },
+            avgLossTime() {
+                if (!this.node.Status.CN)
+                    return 0;
+                else
+                    return eval('(' + this.node.Status.CN.Result + ')').avg_lost_percent.toFixed(2);
+            },
+            avgResTime() {
+                if (!this.node.Status.CN)
+                    return 0;
+                else
+                    return eval('(' + this.node.Status.CN.Result + ')').avg_res_time.toFixed(2);
+            },
             boxClassName() {
                 let c = "box-success";
                 let vm = this;
@@ -83,6 +96,12 @@
                     c = "box-danger";
                 }
                 return c;
+            },
+            cnTaskID() {
+                if (!this.node.Status.CN)
+                    return 0;
+                else
+                    return this.node.Status.CN.ID;
             },
             cnTaskState() {
                 let vm = this;
@@ -98,6 +117,12 @@
                 else
                     return vm.node.Status.CN.UpdatedAt;
             },
+            ssTaskID() {
+                if (!this.node.Status.SS)
+                    return 0;
+                else
+                    return this.node.Status.SS.ID;
+            },
             ssTaskState() {
                 let vm = this;
                 if (vm.ssTaskID === 0)
@@ -111,6 +136,12 @@
                     return "Never";
                 else
                     return vm.node.Status.SS.UpdatedAt;
+            },
+            ss6TaskID() {
+                if (!this.node.Status['SS-IPv6'])
+                    return 0;
+                else
+                    return this.node.Status['SS-IPv6'].ID;
             },
             ss6TaskState() {
                 let vm = this;
