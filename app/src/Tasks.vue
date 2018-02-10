@@ -50,7 +50,7 @@
                         <option value="6">IPv6</option>
                     </select>
                 </div>
-                <div class="col-sm-6">
+                <div v-if="!(workerType === 'manager')" class="col-sm-6">
                     <label for="node" class="control-label">节点</label>
                     <select @change="onNodeChange" v-model="nodeId" class="form-control" id="node">
                         <option value="%">不限</option>
@@ -63,7 +63,7 @@
                     <tbody>
                     <tr>
                         <th>运行 ID</th>
-                        <th>节点/服务器名</th>
+                        <th v-if="!(workerType === 'manager')">节点/服务器名</th>
                         <th v-if="!noIpVer">{{ workerType === 'tester' ? 'IP 协议' : '类型/IP 协议' }}</th>
                         <th>运行结果</th>
                         <th>运行 Host</th>
@@ -73,7 +73,7 @@
                     </tr>
                     <tr v-for="task in data">
                         <td><a href="javascript:;" @click="location('/task/' + task.ID)">{{ '#' + task.ID }}</a></td>
-                        <td>{{ task.Node.Name || task.ServerName }}</td>
+                        <td v-if="!(workerType === 'manager')">{{ task.Node.Name || task.ServerName }}</td>
                         <td v-if="!noIpVer">{{ workerType === 'tester' ? task.IPVer : task.Class + '/' + task.IPVer }}</td>
                         <td>
                             <a href="javascript:;" @click="location('/task/' + task.ID)" v-if="task.State === 'Queuing'" class="btn btn-info">{{ task.State }}</a>

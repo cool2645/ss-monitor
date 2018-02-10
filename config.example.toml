@@ -18,6 +18,11 @@ db_collation = "utf8mb4_unicode_ci"
 
 session_lifetime = 3600
 
+# Will manager create tasks on a daily schedule?
+manager_schedule = true
+# Minutes
+manager_interval = 60
+
 [[admin]]
 username = "root"
 password = "root"

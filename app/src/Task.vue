@@ -37,7 +37,7 @@
                     <tbody>
                     <tr>
                         <th>运行 ID</th>
-                        <th>节点/服务器名</th>
+                        <th v-if="!isManager">节点/服务器名</th>
                         <th>任务类型</th>
                         <th v-if="!noIpVer">IP 协议</th>
                         <th>运行结果</th>
@@ -48,7 +48,7 @@
                     </tr>
                     <tr v-if="task">
                         <td><a href="javascript:;" @click="location('/task/' + task.ID)">{{ '#' + task.ID }}</a></td>
-                        <td>{{ task.Node.Name || task.ServerName }}</td>
+                        <td v-if="!isManager">{{ task.Node.Name || task.ServerName }}</td>
                         <td>{{ task.Class }}</td>
                         <td v-if="!noIpVer">{{ task.Class === 'tester' ? task.IPVer : '' }}</td>
                         <td>
@@ -71,7 +71,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="row">
+            <div v-if="!isManager" class="row">
                 <div class="col-xs-12">
                     <div class="box box-primary">
                         <div class="box-header">
@@ -84,7 +84,7 @@
                     </div>
                 </div>
             </div>
-            <div class="row">
+            <div v-if="!isManager" class="row">
                 <div class="col-xs-12">
                     <div class="box box-primary">
                         <div class="box-header">
@@ -93,19 +93,6 @@
                         </div>
                         <div v-if="task" class="box-body">
                             <pre>{{ task.Log }}</pre>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-xs-12">
-                    <div class="box box-default">
-                        <div class="box-header">
-                            <i class="fa fa-list"></i>
-                            <h3 class="box-title">详细信息</h3>
-                        </div>
-                        <div class="box-body">
-                            <tree-view :data="jsonSource" :options="{maxDepth: 0}"></tree-view>
                         </div>
                     </div>
                 </div>
@@ -146,6 +133,19 @@
                 </table>
             </div>
             <pagination v-if="isManager" :data="laravelData" :limit=2 v-on:pagination-change-page="onPageChange"></pagination>
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="box box-default">
+                        <div class="box-header">
+                            <i class="fa fa-list"></i>
+                            <h3 class="box-title">详细信息</h3>
+                        </div>
+                        <div class="box-body">
+                            <tree-view :data="jsonSource" :options="{maxDepth: 0}"></tree-view>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div v-if="isManager" class="row">
                 <div class="col-xs-12">
                     <div class="box box-default">
@@ -166,6 +166,7 @@
 
 <script>
     import config from './config'
+    import urlParam from './buildUrlParam'
 
     export default {
         props: [
@@ -191,8 +192,11 @@
         },
         watch: {
             $route() {
+                this.jsonSource = {};
+                this.jsonSourceChildren = {};
+                this.isManager = false;
                 this.page = this.$route.hash.substr(1) || 1;
-                this.updateDataChildren();
+                this.updateData();
             }
         },
         computed: {

@@ -5,11 +5,14 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/pkg/errors"
+	"strconv"
+	"github.com/yanzay/log"
 )
 
 type Subscriber struct {
-	ID        uint  `gorm:"AUTO_INCREMENT"`
-	ChatID    int64 `gorm:"unique"`
+	ID        uint   `gorm:"AUTO_INCREMENT"`
+	User      string
+	Platform  string
 	CreatedAt time.Time
 }
 
@@ -19,7 +22,11 @@ func ListSubscribers(db *gorm.DB) (chats []int64, err error) {
 		return
 	}
 	for _, v := range subscribers {
-		chats = append(chats, v.ChatID)
+		chatID, err := strconv.ParseInt(v.User, 10, 64)
+		if err != nil {
+			log.Error(err)
+		}
+		chats = append(chats, chatID)
 	}
 	return
 }
@@ -35,10 +42,12 @@ func GetSubscribers(db *gorm.DB) (subscribers []Subscriber, err error) {
 
 func SaveSubscriber(db *gorm.DB, chatID int64) (newSubscriber Subscriber, err error) {
 	var count int
-	err = db.Model(&Subscriber{}).Where("chat_id = ?", chatID).Count(&count).Error
+	err = db.Model(&Subscriber{}).Where("platform = ?", "Telegram").
+		Where("user = ?", strconv.FormatInt(chatID, 10)).Count(&count).Error
 	if count == 0 {
 		var subscriber Subscriber
-		subscriber.ChatID = chatID
+		subscriber.User = strconv.FormatInt(chatID, 10)
+		subscriber.Platform = "Telegram"
 		newSubscriber, err = CreateSubscriber(db, subscriber)
 	}
 	return
@@ -55,7 +64,9 @@ func CreateSubscriber(db *gorm.DB, subscriber Subscriber) (newSubscriber Subscri
 }
 
 func RemoveSubscriber(db *gorm.DB, chatID int64) (err error) {
-	err = db.Delete(Subscriber{}, "chat_id = ?", chatID).Error
+	err = db.Where("platform = ?", "Telegram").
+		Where("user = ?", strconv.FormatInt(chatID, 10)).
+		Delete(Subscriber{}).Error
 	if err != nil {
 		err = errors.Wrap(err, "RemoveSubscriber")
 		return
