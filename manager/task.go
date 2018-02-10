@@ -22,6 +22,9 @@ func TaskCallback(taskID uint, worker string) (err error) {
 		err = errors.New("Not assigned worker")
 		err = errors.Wrap(err, "TaskCallback")
 	}
+	if task.Class == "cleaner" && task.Result == "Shiny☆" {
+		model.ResetNode(model.Db, task.NodeID)
+	}
 	// Update node status
 	if _, ok := nodes[task.NodeID]; ok {
 		switch task.Class {
@@ -72,9 +75,11 @@ func TaskCallback(taskID uint, worker string) (err error) {
 					msg += fmt.Sprintf("*🔵 task #%d (Created at %s)*\n", fatherTask.ID, fatherTask.CreatedAt.Format("15:04"))
 				}
 			}
+			var toCleanNodeIDs []uint
 			for _, v := range failedTasks {
 				switch v.Class {
 				case "watcher":
+					toCleanNodeIDs = append(toCleanNodeIDs, v.NodeID)
 					msg += fmt.Sprintf("    🔴 task #%d Watch %s: %s\n", v.ID, v.Node.Name, v.State)
 				case "tester":
 					if v.IPVer == 6 {
@@ -97,6 +102,24 @@ func TaskCallback(taskID uint, worker string) (err error) {
 				}
 			}
 			broadcaster.Broadcast(msg, GlobCfg.MANAGER_NAME, "manager")
+			for _, nodeID := range toCleanNodeIDs {
+				node, err := model.GetNode(model.Db, nodeID)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				if node.EnableCleaning && !node.IsCleaning {
+					model.SetNodeCleaning(model.Db, node.ID)
+					task := model.Task{Class: "cleaner", NodeID: node.ID, IPVer: 4}
+					task, err = model.CreateTask(model.Db, task)
+					if err != nil {
+						log.Error(err)
+						continue
+					}
+					msg := fmt.Sprintf("🔶 Attempt to clean node %s by task #%s\n", node.Name, task.ID)
+					broadcaster.Broadcast(msg, GlobCfg.MANAGER_NAME, "manager")
+				}
+			}
 		}
 	}
 	return
