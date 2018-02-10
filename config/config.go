@@ -28,5 +28,5 @@ type Admin struct {
 }
 
 func ParseDSN(config Config) string {
-	return config.DB_USER + ":" + config.DB_PASS + "@/" + config.DB_NAME + "?charset=" + config.DB_CHARSET + "&collation=" + config.DB_COLLATION + "&parseTime=true"
+	return config.DB_USER + ":" + config.DB_PASS + "@/" + config.DB_NAME + "?charset=" + config.DB_CHARSET + "&collation=" + config.DB_COLLATION + "&parseTime=true&loc=Local"
 }
