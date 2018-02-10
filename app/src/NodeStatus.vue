@@ -4,11 +4,11 @@
             <div class="box-header">
                 <i class="fa fa-cube"></i>
                 <h3 class="box-title">{{name}}</h3>
-                <span class="status-text" :show="hasCN">
+                <span class="status-text" v-show="hasCN">
                     <span>丢包率 </span>
                     <span>{{avgLossTime}}</span>
                 </span>
-                <span class="status-text" :show="hasCN">
+                <span class="status-text" v-show="hasCN">
                     <span>延迟 </span>
                     <span>{{avgResTime}}</span>
                 </span>
@@ -71,7 +71,7 @@
         },
         computed: {
             hasCN() {
-                if (!this.node.Status.CN)
+                if (this.avgLossTime === 0 && this.avgResTime === 0)
                     return false;
                 else
                     return true;
@@ -200,7 +200,7 @@
 
     .status-text {
         margin-left: 0.3em;
-        font-size: 0.4em;
+        font-size: 0.8em;
     }
 
     .btn-center {

@@ -9,6 +9,30 @@
         </section>
         <!-- Content -->
         <section class="content">
+            <!--Error Message-->
+            <div class="row">
+                <div class="col-md-12">
+                    <div id="msg-success" class="alert alert-success alert-dismissable" style="display: none;">
+                        <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
+                        <h4><i class="icon fa fa-info"></i> 成功!</h4>
+
+                        <p id="msg-success-p"></p>
+                    </div>
+                    <div id="msg-warning" class="alert alert-warning alert-dismissable" style="display: none;">
+                        <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
+                        <h4><i class="icon fa fa-warning"></i> 出错了!</h4>
+
+                        <p id="msg-warning-p">{{ warning }}</p>
+                    </div>
+                    <div id="msg-error" class="alert alert-danger alert-dismissable" style="display: none;">
+                        <button type="button" class="close" @click="dismissAlert" aria-hidden="true">&times;</button>
+                        <h4><i class="icon fa fa-warning"></i> 出错了!</h4>
+
+                        <p id="msg-error-p">电波无法送达哦～<a href="javascript:;" @click="startClocking">重试</a></p>
+                    </div>
+                </div>
+            </div>
+            <!--./Error Message-->
             <!--Nodes-->
             <section class="row">
                 <div class="col-xs-12">
@@ -74,7 +98,7 @@
                             <h3 class="box-title">详细信息</h3>
                         </div>
                         <div class="box-body">
-                            <tree-view :data="jsonSource" :options="{maxDepth: 5}"></tree-view>
+                            <tree-view :data="jsonSource" :options="{maxDepth: 0}"></tree-view>
                         </div>
                     </div>
                 </div>
@@ -100,6 +124,7 @@
                 nodes: {},
                 workers: {},
                 loadFinish: false,
+                warning: "",
             }
         },
         computed: {
@@ -114,21 +139,40 @@
             vm.jsonSource = {};
         },
         mounted() {
-            let vm = this;
-            fetch(config.urlPrefix + '/status')
-                .then(res => {
-                    res.json().then(
-                        res => {
-                            if (res.result) {
-                                vm.jsonSource = res;
-                                vm.nodes = vm.jsonSource.data.nodes;
-                                vm.workers = vm.jsonSource.data.workers;
-                                vm.loadFinish = true;
-                            }
-                        }
-                    )
-                });
+            this.startClocking();
         },
+        methods: {
+            dismissAlert() {
+                $("#msg-success").hide(10);
+                $("#msg-warning").hide(10);
+                $("#msg-error").hide(10);
+            },
+            startClocking() {
+                $("#msg-error").hide(10);
+                this.clock = setInterval(this.updateData, 5000);
+                this.updateData();
+            },
+            updateData() {
+                let vm = this;
+                fetch(config.urlPrefix + '/status')
+                    .then(res => {
+                        res.json().then(
+                            res => {
+                                if (res.result) {
+                                    vm.jsonSource = res;
+                                    vm.nodes = vm.jsonSource.data.nodes;
+                                    vm.workers = vm.jsonSource.data.workers;
+                                    vm.loadFinish = true;
+                                }
+                            }
+                        )
+                    })
+                    .catch(error => {
+                        $("#msg-error").hide(10).show(100);
+                        clearInterval(this.clock);
+                    });
+            },
+        }
     }
 </script>
 

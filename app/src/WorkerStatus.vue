@@ -11,7 +11,7 @@
                     <tbody>
                     <tr v-for="(worker, index) in workers">
                         <td>
-                            <i class="fa fa-user li-icon"></i><span class="li-text">{{worker.Name}}</span>
+                            <i class="fa fa-heartbeat li-icon"></i><span class="li-text">{{worker.Name}}</span>
                             <span class="badge-center pull-right badge">{{timeStamp2String(worker.Time)}}</span>
                         </td>
                     </tr>
