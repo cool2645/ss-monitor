@@ -178,9 +178,8 @@
                 jsonSource: {},
                 jsonSourceChildren: {},
                 isManager: false,
-                page: this.$route.hash.substr(1) || 1,
+                page: parseInt(this.$route.hash.substr(1)) || 1,
                 perPage: 10,
-                clock: null,
                 warning: "",
                 error: ""
             }
@@ -188,15 +187,12 @@
         mounted() {
             this.startClocking()
         },
-        beforeDestroy() {
-            clearInterval(this.clock)
-        },
         watch: {
             $route() {
                 this.jsonSource = {};
                 this.jsonSourceChildren = {};
                 this.isManager = false;
-                this.page = this.$route.hash.substr(1) || 1;
+                this.page = parseInt(this.$route.hash.substr(1)) || 1;
                 this.updateData();
             }
         },
@@ -246,15 +242,14 @@
             },
             startClocking() {
                 $("#msg-error").hide(10);
-                this.clock = setInterval(this.updateData, 5000);
-                this.updateData();
+                this.updateData(true);
             },
             dismissAlert() {
                 $("#msg-success").hide(10);
                 $("#msg-warning").hide(10);
                 $("#msg-error").hide(10);
             },
-            updateData() {
+            updateData(recur = false) {
                 let vm = this;
                 fetch(config.urlPrefix + '/task/' + this.$route.params.id)
                     .then(res => {
@@ -263,7 +258,8 @@
                                 if (res.result) {
                                     vm.jsonSource = res;
                                     if (res.data.Class === 'manager')
-                                        this.updateDataChildren()
+                                        vm.updateDataChildren();
+                                    if(!vm._isBeingDestroyed && recur) setTimeout(() => {this.updateData(true)}, 5000);
                                 }
                             }
                         )
@@ -297,7 +293,6 @@
                     })
                     .catch(error => {
                         $("#msg-error").hide(10).show(100);
-                        clearInterval(this.clock);
                     });
             },
             resetTask(id) {

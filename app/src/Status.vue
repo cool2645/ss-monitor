@@ -149,10 +149,9 @@
             },
             startClocking() {
                 $("#msg-error").hide(10);
-                this.clock = setInterval(this.updateData, 5000);
-                this.updateData();
+                this.updateData(true);
             },
-            updateData() {
+            updateData(recur) {
                 let vm = this;
                 fetch(config.urlPrefix + '/status')
                     .then(res => {
@@ -163,13 +162,13 @@
                                     vm.nodes = vm.jsonSource.data.nodes;
                                     vm.workers = vm.jsonSource.data.workers;
                                     vm.loadFinish = true;
+                                    if(!vm._isBeingDestroyed && recur) setTimeout(() => {this.updateData(true)}, 5000);
                                 }
                             }
                         )
                     })
                     .catch(error => {
                         $("#msg-error").hide(10).show(100);
-                        clearInterval(this.clock);
                     });
             },
         }
