@@ -46,7 +46,12 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
         filename: "../index.html",
-        template: __dirname + "/src/index.html"
+        template: __dirname + "/src/index.html",
+        minify: process.env.NODE_ENV === 'production' ? {
+          collapseWhitespace: true,
+          preserveLineBreaks: false,
+          removeComments: true,
+        } : false
     }),
     new SWPrecacheWebpackPlugin({
         cacheId: 'ss-monitor',

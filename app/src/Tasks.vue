@@ -136,9 +136,8 @@
                 workerType: this.$route.query.worker_type || '%',
                 ipVer: this.$route.query.ip_ver || '%',
                 nodeId: this.$route.query.node_id || '%',
-                page: this.$route.hash.substr(1) || 1,
+                page: parseInt(this.$route.hash.substr(1)) || 1,
                 perPage: 10,
-                clock: null,
                 warning: "",
                 error: ""
             }
@@ -174,15 +173,12 @@
             this.getNodes();
             this.startClocking();
         },
-        beforeDestroy() {
-            clearInterval(this.clock)
-        },
         watch: {
             $route() {
                 this.workerType = this.$route.query.worker_type || '%';
                 this.ipVer = this.$route.query.ip_ver || '%';
                 this.nodeId = this.$route.query.node_id || '%';
-                this.page = this.$route.hash.substr(1) || 1;
+                this.page = parseInt(this.$route.hash.substr(1)) || 1;
                 this.updateData();
             }
         },
@@ -192,8 +188,7 @@
             },
             startClocking() {
                 $("#msg-error").hide(10);
-                this.clock = setInterval(this.updateData, 5000);
-                this.updateData();
+                this.updateData(true);
             },
             dismissAlert() {
                 $("#msg-success").hide(10);
@@ -220,7 +215,7 @@
                 this.$router.push({hash: '#' + page, query: this.$route.query});
                 this.updateData();
             },
-            updateData() {
+            updateData(recur = false) {
                 let vm = this;
                 fetch(config.urlPrefix + '/task?' + urlParam({
                     class: this.workerType,
@@ -233,14 +228,14 @@
                         res.json().then(
                             res => {
                                 if (res.result) {
-                                    vm.jsonSource = res
+                                    vm.jsonSource = res;
+                                    if(!vm._isBeingDestroyed && recur) setTimeout(() => {this.updateData(true)}, 5000);
                                 }
                             }
                         )
                     })
                     .catch(error => {
                         $("#msg-error").hide(10).show(100);
-                        clearInterval(this.clock);
                     });
             },
             resetTask(id) {
