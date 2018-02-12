@@ -2,13 +2,15 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 import Nav from './Nav.vue'
 import Footer from './Footer.vue'
-import Status from './Status.vue'
-import Tasks from './Tasks.vue'
-import Task from './Task.vue'
-import Launch from './Launch.vue'
-import Admin from './Admin.vue'
-import TreeView from "vue-json-tree-view"
-import LaravelVuePagination from 'laravel-vue-pagination'
+
+const Status = () => import('./Status.vue');
+const Tasks = () => import('./Tasks.vue');
+const Task = () => import('./Task.vue');
+const Launch = () => import('./Launch.vue');
+const Admin = () => import('./Admin.vue');
+const TreeView = () => import("vue-json-tree-view");
+const LaravelVuePagination = () => import("laravel-vue-pagination");
+
 import './style.css'
 import config from './config'
 import registerServiceWorker from './registerServiceWorker';
