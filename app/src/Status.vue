@@ -163,6 +163,7 @@
                                     vm.workers = vm.jsonSource.data.workers;
                                     vm.loadFinish = true;
                                     if(!vm._isBeingDestroyed && recur) setTimeout(() => {this.updateData(true)}, 5000);
+                                    vm.$emit('async-load');
                                 }
                             }
                         )

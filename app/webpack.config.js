@@ -8,7 +8,7 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, './dist'),
     publicPath: '/dist/',
-    filename: process.env.NODE_ENV === 'production' ? 'build.[hash].js' : 'build.js'
+    filename: process.env.NODE_ENV === 'production' ? '[name].bundle.[hash].js' : '[name].bundle.js'
   },
   module: {
     rules: [
@@ -45,21 +45,24 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-        filename: "../index.html",
-        template: __dirname + "/src/index.html",
-        minify: process.env.NODE_ENV === 'production' ? {
-          collapseWhitespace: true,
-          preserveLineBreaks: false,
-          removeComments: true,
-        } : false
+      filename: "../index.html",
+      template: __dirname + "/src/index.html",
+      minify: process.env.NODE_ENV === 'production' ? {
+        collapseWhitespace: true,
+        preserveLineBreaks: false,
+        removeComments: true,
+      } : false
     }),
     new SWPrecacheWebpackPlugin({
-        cacheId: 'ss-monitor',
-        dontCacheBustUrlsMatching: /\.\w{8}\./,
-        filename: '../service-worker.js',
-        minify: true,
-        navigateFallback: '/index.html',
-        staticFileGlobsIgnorePatterns: [/\.map$/, /asset-manifest\.json$/],
+      cacheId: 'ss-monitor',
+      dontCacheBustUrlsMatching: /\.\w{8}\./,
+      filename: '../service-worker.js',
+      minify: true,
+      navigateFallback: '/index.html',
+      staticFileGlobsIgnorePatterns: [/\.map$/, /asset-manifest\.json$/],
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'common'
     })
   ],
   resolve: {

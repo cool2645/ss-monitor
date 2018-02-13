@@ -230,6 +230,7 @@
                                 if (res.result) {
                                     vm.jsonSource = res;
                                     if(!vm._isBeingDestroyed && recur) setTimeout(() => {this.updateData(true)}, 5000);
+                                    vm.$emit('async-load');
                                 }
                             }
                         )

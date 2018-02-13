@@ -259,6 +259,8 @@
                                     vm.jsonSource = res;
                                     if (res.data.Class === 'manager')
                                         vm.updateDataChildren();
+                                    else
+                                        vm.$emit('async-load');
                                     if(!vm._isBeingDestroyed && recur) setTimeout(() => {this.updateData(true)}, 5000);
                                 }
                             }
@@ -287,6 +289,7 @@
                                 if (res.result) {
                                     vm.jsonSourceChildren = res;
                                     vm.isManager = true;
+                                    vm.$emit('async-load');
                                 }
                             }
                         )

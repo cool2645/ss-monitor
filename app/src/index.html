@@ -54,7 +54,7 @@
     <nav-section v-bind:routes="routes"></nav-section>
     <main id="main">
         <div class="content-wrapper">
-            <router-view :auth="auth" @check-auth="checkAuth"></router-view>
+            <router-view :auth="auth" @check-auth="checkAuth" @async-load="loadAsyncChunks"></router-view>
         </div>
         <foot-section></foot-section>
     </main>

@@ -59,6 +59,8 @@
         mounted() {
             if(this.isAdmin)
                 this.getNodes();
+            else
+                this.$emit('async-load');
         },
         watch: {
             isAdmin(newV, oldV) {
@@ -94,7 +96,8 @@
                         res.json().then(
                             res => {
                                 if (res.result) {
-                                    vm.nodes = res.data
+                                    vm.nodes = res.data;
+                                    vm.$emit('async-load');
                                 }
                             }
                         )

@@ -14,6 +14,7 @@ import './style.css'
 import config from './config'
 import TreeView from 'vue-json-tree-view'
 import registerServiceWorker from './registerServiceWorker';
+
 registerServiceWorker();
 
 Vue.use(TreeView);
@@ -21,12 +22,12 @@ Vue.use(VueRouter);
 Vue.component('pagination', LaravelVuePagination);
 
 const routes = [
-    { path: '/', redirect: '/status' },
-    { title: '状态监控', path: '/status', icon: "fa-dashboard", component: Status},
-    { title: '任务记录', path: '/task', icon: "fa-flag-checkered", component: Tasks },
-    { path: '/task/:id', component: Task },
-    { title: '创建任务', path: '/launch', icon: "fa-eye", component: Launch },
-    { title: '管理面板', path: '/admin', icon: "fa-server", component: Admin },
+    {path: '/', redirect: '/status'},
+    {title: '状态监控', path: '/status', icon: "fa-dashboard", component: Status},
+    {title: '任务记录', path: '/task', icon: "fa-flag-checkered", component: Tasks},
+    {path: '/task/:id', component: Task},
+    {title: '创建任务', path: '/launch', icon: "fa-eye", component: Launch},
+    {title: '管理面板', path: '/admin', icon: "fa-server", component: Admin},
 ];
 
 const router = new VueRouter({
@@ -74,5 +75,13 @@ new Vue({
                     )
                 });
         },
+        loadAsyncChunks() {
+            Status();
+            Tasks();
+            Task();
+            Admin();
+            Launch();
+            LaravelVuePagination();
+        }
     }
 });
