@@ -8,11 +8,11 @@ const Tasks = () => import('./Tasks.vue');
 const Task = () => import('./Task.vue');
 const Launch = () => import('./Launch.vue');
 const Admin = () => import('./Admin.vue');
-const TreeView = () => import("vue-json-tree-view");
 const LaravelVuePagination = () => import("laravel-vue-pagination");
 
 import './style.css'
 import config from './config'
+import TreeView from 'vue-json-tree-view'
 import registerServiceWorker from './registerServiceWorker';
 registerServiceWorker();
 
