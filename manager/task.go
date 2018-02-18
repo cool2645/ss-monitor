@@ -24,6 +24,7 @@ func TaskCallback(taskID uint, worker string) (err error) {
 	}
 	if task.Class == "cleaner" && task.Result == "Shiny☆" {
 		model.ResetNode(model.Db, task.NodeID)
+		InitNodes()
 	}
 	// Update node status
 	if _, ok := nodes[task.NodeID]; ok {
@@ -118,7 +119,8 @@ func TaskCallback(taskID uint, worker string) (err error) {
 						log.Error(err)
 						continue
 					}
-					msg := fmt.Sprintf("🔶 Attempt to clean node %s by task #%s\n", node.Name, task.ID)
+					InitNodes()
+					msg := fmt.Sprintf("🔶 Attempt to clean node %s by task #%d\n", node.Name, task.ID)
 					broadcaster.Broadcast(msg, GlobCfg.MANAGER_NAME, "manager")
 				}
 			}
