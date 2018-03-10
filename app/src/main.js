@@ -22,7 +22,7 @@ Vue.use(VueRouter);
 Vue.component('pagination', LaravelVuePagination);
 
 const routes = [
-    {path: '/', redirect: '/status'},
+    {path: '/', component: Status},
     {title: '状态监控', path: '/status', icon: "fa-dashboard", component: Status},
     {title: '任务记录', path: '/task', icon: "fa-flag-checkered", component: Tasks},
     {path: '/task/:id', component: Task},
