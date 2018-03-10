@@ -11,8 +11,6 @@ import (
 )
 
 func TaskCallback(taskID uint, worker string) (err error) {
-	nodeMux.Lock()
-	defer nodeMux.Unlock()
 	task, err := model.GetTask(model.Db, taskID)
 	if err != nil {
 		err = errors.Wrap(err, "TaskCallback")
@@ -22,7 +20,7 @@ func TaskCallback(taskID uint, worker string) (err error) {
 		err = errors.New("Not assigned worker")
 		err = errors.Wrap(err, "TaskCallback")
 	}
-	if task.Class == "cleaner" && task.Result == "Shiny☆" {
+	if task.Class == "cleaner" && task.State == "Shiny☆" {
 		model.ResetNode(model.Db, task.NodeID)
 		InitNodes()
 	}

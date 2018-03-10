@@ -6,7 +6,6 @@ import (
 	"github.com/yanzay/log"
 	"github.com/cool2645/ss-monitor/broadcaster"
 	"fmt"
-	"sync"
 )
 
 type node struct {
@@ -16,11 +15,8 @@ type node struct {
 }
 
 var nodes map[uint]node
-var nodeMux sync.RWMutex
 
 func InitNodes() {
-	nodeMux.Lock()
-	defer nodeMux.Unlock()
 	nodes = make(map[uint]node)
 	ns, err := model.GetNodes(model.Db)
 	if err != nil {
@@ -60,8 +56,6 @@ func InitNodes() {
 }
 
 func GetNodeStatus() map[uint]node {
-	nodeMux.RLock()
-	defer nodeMux.RUnlock()
 	return nodes
 }
 
@@ -69,7 +63,6 @@ func reportNodeStatus(ch chan int64) {
 	for {
 		reqChatID := <-ch
 		var msg string
-		nodeMux.RLock()
 		for _, node := range nodes {
 			for k, s := range node.Status {
 				if node.IsCleaning {
@@ -84,7 +77,6 @@ func reportNodeStatus(ch chan int64) {
 				}
 			}
 		}
-		nodeMux.RUnlock()
 		broadcaster.ReplyMessage(msg, GlobCfg.MANAGER_NAME, "manager", reqChatID)
 	}
 }
