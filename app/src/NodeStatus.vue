@@ -65,12 +65,15 @@
             'node'
         ],
         data() {
-            return {
-                name: this.node.Name,
-                isCleaning: this.node.IsCleaning,
-            }
+            return {}
         },
         computed: {
+            name() {
+                return this.node.Name
+            },
+            isCleaning() {
+                return this.node.IsCleaning
+            },
             hasCN() {
                 if (this.avgLossTime === 0 && this.avgResTime === 0)
                     return false;
