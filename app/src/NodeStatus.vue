@@ -78,13 +78,13 @@
                     return true;
             },
             avgLossTime() {
-                if (!this.node.Status.CN)
+                if (!this.node.Status.CN || !this.node.Status.CN.State)
                     return 0;
                 else
                     return eval('(' + this.node.Status.CN.Result + ')').avg_lost_percent.toFixed(2);
             },
             avgResTime() {
-                if (!this.node.Status.CN)
+                if (!this.node.Status.CN || !this.node.Status.CN.State)
                     return 0;
                 else
                     return eval('(' + this.node.Status.CN.Result + ')').avg_res_time.toFixed(2);
