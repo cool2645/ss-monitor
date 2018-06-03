@@ -315,6 +315,8 @@ class Cleaner(Worker):
                 msg = "Watcher returned %s, retrying" % (rst['State'])
                 self.sync_log_and_broadcast(task, msg, emoji='fail')
 
+        # Shiny preparation
+        is_shiny = True
         # Update DNS records(8)
         logging.debug('Updating dns records...')
         msg = "Updating dns records for node %s" % (task['Node']['Name'])
@@ -327,7 +329,7 @@ class Cleaner(Worker):
             self.sync_log_and_broadcast(task, msg, emoji='fail')
             self.taskStateID = 5
             self.update_task_state(task)
-            return False
+            is_shiny = False
 
         # Update Node info(9)
         logging.debug('Updating node info...')
@@ -341,7 +343,7 @@ class Cleaner(Worker):
             self.sync_log_and_broadcast(task, msg, emoji='fail')
             self.taskStateID = 5
             self.update_task_state(task)
-            return False
+            is_shiny = False
 
         # Destroy temporary snapshot if needed(10)
         if need_destroy_snapshot:
@@ -354,7 +356,7 @@ class Cleaner(Worker):
                 self.sync_log_and_broadcast(task, msg, emoji='fail')
                 self.taskStateID = 5
                 self.update_task_state(task)
-                return False
+                is_shiny = False
             else:
                 msg = "Successfully destroyed temporary snapshot for node %s" % (task['Node']['Name'])
                 self.sync_log_and_broadcast(task, msg, emoji='success')
@@ -374,17 +376,19 @@ class Cleaner(Worker):
                 self.sync_log_and_broadcast(task, msg, emoji='fail')
                 self.taskStateID = 5
                 self.update_task_state(task)
-                return False
+                is_shiny = False
+        if is_shiny:
+            msg = "All cleaning works done for node %s, Shiny☆" % (task['Node']['Name'])
+            self.sync_log_and_broadcast(task, msg, emoji='success')
+            self.taskStateID = 4
+            self.update_task_state(task)
 
-        msg = "All cleaning works done for node %s, Shiny☆" % (task['Node']['Name'])
-        self.sync_log_and_broadcast(task, msg, emoji='success')
-        self.taskStateID = 4
-        self.update_task_state(task)
+            # Perform worker callback, doesn't matter if it fails
+            self.callback(task)
 
-        # Perform worker callback, doesn't matter if it fails
-        self.callback(task)
-
-        return True
+            return True
+        else:
+            return False
 
     def heartbeat(self):
         logging.debug("Sending heartbeat package...")
