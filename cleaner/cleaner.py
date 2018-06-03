@@ -64,7 +64,7 @@ class Cleaner(Worker):
         # Init dnsimple api instance
         self.dnsimpleUsername = self.config.get('cleaner', 'dnsimpleUsername')
         self.dnsimplePassword = self.config.get('cleaner', 'dnsimplePassword')
-        self.dns = DNSimple(username=self.dnsimpleUsername, password=self.dnsimplePassword)
+        self.dns = DNSimple(email=self.dnsimpleUsername, password=self.dnsimplePassword)
         # Function dic for different VPS providers
         self.supportedVPSProviderList = ['Vultr', 'Conoha']
         self.supportedDNSProviderList = ['DNSimple']
